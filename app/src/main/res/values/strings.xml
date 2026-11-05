@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Motrix Lite</string>
+
+    <string name="channel_downloads_name">后台下载</string>
+    <string name="channel_downloads_desc">显示正在进行的下载任务进度</string>
+    <string name="channel_result_name">下载结果</string>
+    <string name="channel_result_desc">下载完成或失败时的提醒</string>
+
+    <string name="notification_action_pause_all">暂停全部</string>
+    <string name="notification_action_resume_all">继续全部</string>
+    <string name="notification_completed_title">下载完成</string>
+    <string name="notification_failed_title">下载失败</string>
+</resources>
