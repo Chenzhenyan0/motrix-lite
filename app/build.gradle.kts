@@ -21,8 +21,8 @@ android {
         applicationId = "com.motrixlite.downloader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.1"
         buildConfigField("String", "APP_FLAVOR", "\"standard\"")
         ndk {
             // 原生内核只随 arm64 提供（aria2c arm64 二进制 + gomobile arm64 AAR）。
