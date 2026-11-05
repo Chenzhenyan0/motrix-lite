@@ -4,21 +4,21 @@
 
 > 参考 Motrix 桌面应用的产品思路与交互组织方式，**独立实现**；不是 Electron 封装，也不是 Motrix 桌面版的 Android 移植。
 >
-> 本版本（1.1.0）同时包含 GPL 组件，**整体按 GNU GPLv3 开源分发**。详见[重要声明](#重要声明)与[许可证与源码获取](#十二许可证与源码获取)。
+> 本版本（1.1.1）同时包含 GPL 组件，**整体按 GNU GPLv3 开源分发**。详见[重要声明](#重要声明)与[许可证与源码获取](#十二许可证与源码获取)。
 
 | 项 | 值 |
 | --- | --- |
 | 应用名 / 包名 | Motrix Lite / `com.motrixlite.downloader`（包名不变） |
-| 版本 | versionCode **2**，versionName **1.1.0** |
+| 版本 | versionCode **3**，versionName **1.1.1** |
 | 最低系统 | Android 8.0（API 26） |
 | 编译 / 目标 SDK | compileSdk 35 / targetSdk 35（Android 15） |
 | ABI | **仅 arm64-v8a**（`abiFilters`） |
 | 技术栈 | Kotlin 2.0.21 · Jetpack Compose（BOM 2024.12.01 / Material3）· OkHttp 4.12.0 · Coroutines 1.9.0 |
 | 构建工具 | AGP 8.7.3 · Gradle 8.9 · JDK 17 |
 | 下载引擎 | 内置引擎（自研 OkHttp 分段）· Gopeed（gomobile AAR）· aria2（子进程 + JSON-RPC） |
-| 许可证 | **GNU GPLv3**（见 [LICENSE](LICENSE)）；Gopeed 为 GPL-3.0；aria2 为 GPL-2.0-or-later，其预编译二进制静态链接 **OpenSSL 3.0.0（Apache-2.0）** |
+| 许可证 | **GNU GPLv3**（见 [LICENSE](LICENSE)）；Gopeed 为 GPL-3.0；aria2 为 GPL-2.0-or-later，其预编译二进制静态链接 **OpenSSL 1.1.1d（OpenSSL + SSLeay 双许可证，适用 aria2 OpenSSL 例外）** |
 | 支持协议 | **HTTP / HTTPS 直链**（磁力、BT 种子在当前任务创建流程中仍不支持） |
-| 真机验收 | **未执行**（本环境无 Android 设备/模拟器），全部真机项见 [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)，状态为"待验证" |
+| 真机验收 | **部分真机抽查已完成**（Redmi Turbo 4 Pro / Android 16；内置/Gopeed/aria2 下载、aria2 锁屏 10 分钟等），完整 A1–A7/B/E 验收仍待补，详见 [§10](#十测试与验收状态) |
 
 ---
 
@@ -26,12 +26,12 @@
 
 请先阅读这一节，避免误解项目性质：
 
-1. **许可证路线已确定：整体 GPLv3。** APK 中打包了 Gopeed（GPL-3.0，gomobile AAR，与 App 同进程链接）与 aria2（GPL-2.0-or-later，作为子进程执行；其二进制静态链接 OpenSSL 3.0.0 / Apache-2.0，历史 `LICENSE.OpenSSL` 例外不覆盖该版本，整包按 GPLv3 分发、GPLv3 与 Apache-2.0 兼容）。Gopeed AAR 与 App 构成**结合作品（combined work）**，因此包含两者的同一 APK **必须整体按 GPLv3 分发**，App 自身源码也必须按 GPLv3 提供。
+1. **许可证路线已确定：整体 GPLv3。** APK 中打包了 Gopeed（GPL-3.0，gomobile AAR，与 App 同进程链接）与 aria2 1.35.0（GPL-2.0-or-later，作为子进程执行；其二进制静态链接 **OpenSSL 1.1.1d**，OpenSSL/SSLeay 双许可证属于 aria2 `LICENSE.OpenSSL` 链接例外的覆盖范围）。Gopeed AAR 与 App 构成**结合作品（combined work）**，因此包含两者的同一 APK **必须整体按 GPLv3 分发**，App 自身源码也必须按 GPLv3 提供。
    **明确否定：不存在"把 Gopeed AAR 和 aria2 放进同一 APK 但闭源分发"的合规方案。** 通过独立进程、RPC、加壳或"动态加载"来规避 GPL 的说法不可靠；通过 GPLv2 的"独立程序/聚合"争议也不能把 AAR 链接的 Gopeed 变成独立程序。完整分析见 [docs/ENGINE_LICENSE_ANALYSIS.md](docs/ENGINE_LICENSE_ANALYSIS.md)。
 2. **不是桌面版封装，也不是 Motrix 官方产品。** 本工程是独立的 Android 原生项目，未使用 Electron、Node.js 或 Motrix 的 Web UI；不包含 Motrix 的源代码、界面资源、图标或品牌素材。Motrix 桌面版（MIT）仅作为产品思路参考。与 Motrix 作者无隶属、赞助或背书关系。
 3. **三个下载引擎，任务创建时绑定。** 设置页的「下载引擎」**只影响之后新建的任务**；已有任务保留创建时固定的 `task.engine`，不会被切换设置改变。三个引擎的任务在同一个列表展示，任务卡片/详情页会显示所属引擎。
-4. **两个原生内核是可选组件。** `app/libs/libgopeed.aar` 与 `app/src/main/jniLibs/arm64-v8a/libaria2c.so` 不提交到仓库（被 `.gitignore` 忽略），需运行 `native/` 下的脚本生成/获取。**未放入原生产物时工程仍可编译运行**，设置页会把 Gopeed/aria2 显示为"当前 APK 不可用"，新建任务会被拒绝并提示，不会崩溃（本仓库 v1.1.0 的最终构建**已放入**两个产物，见 [6.5 构建产物](#65-构建产物与体积)）。
-5. **未做真机验收。** 当前环境没有 Android 设备或模拟器，验证范围仅限 JVM 单元测试（**32/32，9 个测试类**）与 `:app:assembleDebug` / `:app:assembleRelease` 构建（release 经 R8 + 演示签名，APK 已含两个原生内核）。红米 Turbo 4 Pro、锁屏 10 分钟、两个原生引擎的实际下载等**全部待真机验证**；本文档不声称已通过真机验收。
+4. **两个原生内核是可选组件。** `app/libs/libgopeed.aar` 与 `app/src/main/jniLibs/arm64-v8a/libaria2c.so` 不提交到仓库（被 `.gitignore` 忽略），需运行 `native/` 下的脚本生成/获取。**未放入原生产物时工程仍可编译运行**，设置页会把 Gopeed/aria2 显示为"当前 APK 不可用"，新建任务会被拒绝并提示，不会崩溃（本仓库 v1.1.1 最终构建已放入两个产物，基线见 [6.5](#65-构建产物与体积)）。
+5. **真机验证为"部分抽查"，不是完整验收。** 已在 Redmi Turbo 4 Pro（Redmi 25053RT47C，Android 16 / SDK 36，HyperOS OS3.0.306.0.WOLCNXM，arm64，4KB page）上抽查：内置/Gopeed/aria2 三个引擎的 50MB HTTP 下载与发布、aria2 暂停/恢复、引擎切换、aria2 锁屏 10 分钟、force-stop 后无残留 aria2 进程。**尚未验证**：Gopeed 锁屏 10 分钟专项、通知权限拒绝降级、5 任务并发压力、完整 E1–E8/A1–A7/B1–B8。本文档不声称已通过完整真机验收。
 6. **仅支持 HTTP/HTTPS 直链。** 尽管 Gopeed 内核本身具备多协议能力，当前任务创建流程只接受 `http://`/`https://` 直链；磁力链接、BT 种子、ed2k 等仍不支持（见 [已知问题](docs/KNOWN_ISSUES.md)）。
 
 ---
@@ -49,17 +49,17 @@
 | 仅 Wi-Fi | ✅ | ✅（Controller 暂停/恢复） | ✅（Controller 暂停/恢复） |
 | 多连接 | ✅ 每任务 1–16 连接 | ✅ 通过任务 `extra.connections` 下发 | ✅ `split` / `max-connection-per-server` |
 | 进程/资源风险 | 与 App 同进程，但无 Go 运行时 | Go panic/OOM 可能导致 **App 崩溃** | 子进程崩溃可控，但需重建 gid 与任务映射 |
-| 许可证 | 项目自身代码（GPLv3） | GPL-3.0 | GPL-2.0-or-later；静态链接 OpenSSL 3.0.0（Apache-2.0） |
-| APK 体积影响 | 无额外 | AAR 15,438,987 B（内含 `libgojni.so` 43,908,776 B） | 二进制 69,107,592 B，压缩后仍显著 |
+| 许可证 | 项目自身代码（GPLv3） | GPL-3.0 | GPL-2.0-or-later；静态链接 OpenSSL 1.1.1d（OpenSSL+SSLeay，适用 aria2 例外） |
+| APK 体积影响 | 无额外 | AAR 15,438,987 B（内含 `libgojni.so` 43,908,776 B） | 二进制 5,872,304 B（1.35.0，较 v1.1.0 的 69.1 MB 显著减小） |
 | 可用性探测 | 恒可用 | 反射探测 AAR 类是否存在（实际类 `com.gopeed.libgopeed.Libgopeed`） | 检查 `nativeLibraryDir/libaria2c.so` 是否存在且大小合理 |
-| 最终 APK | 三个引擎共用同一 APK：debug 67,482,342 B（64.36 MB）/ release 38,559,243 B（36.77 MB），详见 [6.5](#65-构建产物与体积) | — | — |
+| 最终 APK | 三个引擎共用同一 APK：**debug 29,358,263 B（28.00 MB）/ release 18,771,902 B（17.90 MB）**，详见 [6.5](#65-构建产物与体积) | — | — |
 
 **可用性处理**：设置页对不可用引擎显示"当前 APK 不可用"并禁用选择；新建任务时若当前设置引擎不可用，会拒绝创建并提示切换引擎，**不会静默回退**到内置引擎。
 
 ### 1.2 许可证分析结论（摘要）
 
 - **Gopeed v1.9.3 = GPL-3.0**。gomobile AAR 把 Go 代码编译为共享库，通过 JNI 与 Kotlin 代码在同一进程内直接调用，构成结合作品 → **App 整体必须是 GPLv3**。
-- **aria2 1.37.0 = GPL-2.0-or-later**。以独立子进程方式调用、随 APK 分发，仍须履行 GPLv2 的对应源码/许可证/书面要约义务；GPL-2.0-or-later 与 GPLv3 兼容，因此可与 Gopeed 一起放入同一 GPLv3 发布物。**注意**：其预编译二进制实际静态链接的是 **OpenSSL 3.0.0（Apache-2.0）**，不是 OpenSSL 1.1.1；aria2 仓库的 `LICENSE.OpenSSL` 是历史例外文本，不覆盖该组合。整包按 GPLv3 分发（GPLv3 与 Apache-2.0 兼容），并随附 Apache-2.0 全文与 OpenSSL 版权声明。
+- **aria2 1.35.0 = GPL-2.0-or-later**。以独立子进程方式调用、随 APK 分发，仍须履行 GPLv2 的对应源码/许可证/书面要约义务；GPL-2.0-or-later 与 GPLv3 兼容，因此可与 Gopeed 一起放入同一 GPLv3 发布物。**OpenSSL 说明**：v1.1.1 的 aria2 1.35.0 静态链接 **OpenSSL 1.1.1d**（OpenSSL + SSLeay 双许可证），该版本属于 aria2 `LICENSE.OpenSSL` 链接例外的覆盖范围；v1.1.0 使用的 1.37.0/OpenSSL 3.0.0 因 Android 16 缺少 legacy provider 启动失败，已被替换。
 - **Motrix 桌面版 = MIT**，仅参考思路，未复用代码/资源，不产生额外义务。
 - **AndroidX / Compose / OkHttp / Kotlin / Coroutines = Apache-2.0**；**Go runtime = BSD-3-Clause**；OpenSSL 及 aria2 静态链接的其它依赖按其各自许可证声明（见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)）。
 - 本项目整体按 **GPLv3** 发布，对应源码、构建脚本与书面要约见[第十二节](#十二许可证与源码获取)。
@@ -72,7 +72,7 @@
 
 - `magnet:`、`.torrent`、ed2k、FTP 等仍然**不支持**；
 - 需要登录/Cookie/Referer/防盗链签名的链接仍然**不支持**；
-- 把 Gopeed/aria2 接入 BT 是后续可扩展方向，不属于 1.1.0 范围。
+- 把 Gopeed/aria2 接入 BT 是后续可扩展方向，不属于 1.1.1 范围。
 
 ### 1.4 系统架构
 
@@ -111,12 +111,13 @@ DownloadRepository（内存唯一数据源）  DownloadService（dataSync 前台
 
 | 风险 | 影响 | 缓解措施 | 状态 |
 | --- | --- | --- | --- |
-| Gopeed 与 App 同进程 | Go panic/OOM 可能直接导致 App 崩溃 | 限制单任务并发、AAR 版本固定、启动/停止加异常保护；只能降低概率，无法完全隔离 | 已知限制（KI-24），待真机验证 |
+| Gopeed 与 App 同进程 | Go panic/OOM 可能直接导致 App 崩溃 | 限制单任务并发、AAR 版本固定、启动/停止加异常保护；只能降低概率，无法完全隔离 | 已知限制（KI-24），Gopeed 锁屏专项待验证 |
 | Gopeed 不支持全局限速 | 设置页的"全局限速"对 Gopeed 任务不生效 | 设置页与提示中明确说明；需要限速时改用内置引擎或 aria2 | 已知限制（KI-23） |
-| 两个原生引擎同时运行 | 内存、CPU、文件句柄与耗电增加 | 只在有对应任务时启动；任务结束/暂停后关闭内核；设置页提示资源开销 | 已实现，待真机验证 |
-| APK 体积显著增大 | 安装/更新成本高，低端机可能空间不足 | 仅打包 arm64-v8a；最终 v1.1.0 APK：debug 67,482,342 B（64.36 MB）、release 38,559,243 B（36.77 MB） | 已知限制（KI-25） |
-| 第三方预编译二进制供应链 | 二进制可能包含未披露补丁/后门 | `fetch.ps1` 固定版本、大小与 SHA-256；aria2 二进制经 24 路 Range 分片下载并与独立下载哈希核对一致；AAR 记录 SHA-256；建议自行重建并记录 SBOM | 已缓解（KI-26） |
-| 静态依赖版本较旧 | OpenSSL 3.0.0（2021-09）后续有 CVE 修复；libssh2 为 1.9.0_DEV 开发快照 | 版本/commit 已记录在 `licenses/DEPENDENCY-VERSIONS.md`；建议用更新版本重建 aria2 或在 Release 披露供应链时点 | 已知限制（KI-30） |
+| 两个原生引擎同时运行 | 内存、CPU、文件句柄与耗电增加 | 只在有对应任务时启动；任务结束/暂停后关闭内核；设置页提示资源开销 | 已实现，双引擎并存待压力测试 |
+| APK 体积显著增大 | 安装/更新成本高，低端机可能空间不足 | 仅打包 arm64-v8a；v1.1.1 最终 APK：debug 29,358,263 B（28.00 MB）、release 18,771,902 B（17.90 MB）；aria2 二进制由 69.1 MB 降至 5.87 MB | 已知限制（KI-25） |
+| 第三方预编译二进制供应链 | 二进制可能包含未披露补丁/后门 | `fetch.ps1` 固定 1.35.0 版本、大小 5,872,304 B 与 SHA-256；AAR 记录 SHA-256；建议自行重建并记录 SBOM | 已缓解（KI-26） |
+| 静态依赖版本较旧 | OpenSSL 1.1.1d（2019-09）与 aria2 1.35.0（2019-10）均已停维护、存在 CVE；libssh2 为 1.9.0_DEV 开发快照 | 版本/commit 已记录在 `licenses/DEPENDENCY-VERSIONS.md`；建议用受支持的 OpenSSL/aria2 重建，或在 Release 披露供应链时点 | 已知限制（KI-30） |
+| Android 16 兼容性 | v1.1.0 的 aria2 1.37.0/OpenSSL 3.0.0 在 Android 16 启动失败（缺 legacy provider） | v1.1.1 改用 aria2 1.35.0/OpenSSL 1.1.1d，已在真机验证；后续升级 aria2/OpenSSL 需做 Android 16 回归 | 已修复（KI-31） |
 | Android 10+ 禁止从私有目录执行 | aria2 不能"assets → 释放 → exec" | 以 `jniLibs/arm64-v8a/libaria2c.so` 打包，系统解压到 `nativeLibraryDir`；`useLegacyPackaging=true` 确保解压 | 已实现 |
 | 原生引擎不可用/加载失败 | 设置页不可选、新建任务被拒绝 | 可用性探测 + 提示 + 拒绝创建，不崩溃 | 已实现，待真机验证 |
 | 服务器不支持 Range | 无法多段加速、暂停后可能重下 | 内置引擎探测后降级单连接；aria2 使用 `continue=true` 依赖服务器支持 | 已实现 |
@@ -202,9 +203,9 @@ motrix-lite/
 │   ├── gopeed/build.ps1                 # 构建 Gopeed AAR（Go 1.24.11 / NDK 27.2.12479018 / v1.9.3）
 │   ├── aria2/fetch.ps1                  # 获取/校验 aria2 arm64 预编译二进制
 │   ├── aria2/README.md                  # aria2 集成与 GPLv2 合规说明
-│   ├── licenses/                        # 许可证文本（GPLv3/GPLv2/aria2/Gopeed/OpenSSL 3.0.0 Apache-2.0/依赖/源码要约）
-│   └── sources/                         # 二进制来源构建文件（.gitignore 忽略）
-├── licenses/                            # 许可证文本（GPLv3/GPLv2/aria2/Gopeed/源码要约）
+│   ├── licenses/                        # 许可证文本（GPLv3/GPLv2/aria2/Gopeed/OpenSSL 1.1.1d/依赖/源码要约）
+│   └── sources/                         # 二进制来源构建文件与源码归档（.gitignore 忽略）
+├── licenses/                            # 许可证文本（GPLv3/GPLv2/aria2/Gopeed/OpenSSL 1.1.1d/依赖/源码要约）
 ├── docs/
 │   ├── ARCHITECTURE.md                  # 架构与内核细节（含双原生引擎）
 │   ├── BUILD_AND_SIGN.md                # 构建、签名、排错
@@ -215,7 +216,7 @@ motrix-lite/
 │   └── ENGINE_INTEGRATION_PLAN.md       # 双内核集成方案（已实施）
 ├── keystore/release.keystore            # 演示签名证书（不可用于上架）
 ├── tools/range_test_server.py           # 本地 Range 测试服务器
-├── dist/                                # 最终 APK（v1.1.0 debug/release）+ SHA256SUMS.txt
+├── dist/                                # 最终 APK（v1.1.1 debug/release）+ SHA256SUMS.txt
 ├── gradle/wrapper/                      # Gradle 8.9 wrapper
 ├── build.gradle.kts / settings.gradle.kts / gradle.properties
 ├── gradlew / gradlew.bat
@@ -226,7 +227,7 @@ motrix-lite/
 └── THIRD_PARTY_NOTICES.md               # 第三方组件许可清单
 ```
 
-### 关键源文件（1.1.0）
+### 关键源文件（1.1.1）
 
 | 文件 | 职责 |
 | --- | --- |
@@ -265,14 +266,15 @@ motrix-lite/
 运行流程（`Aria2EngineController`）：
 
 1. 存在 `engine=ARIA2` 且未完成/需要运行的任务时，按需启动一次 `libaria2c.so` 子进程；
-2. 启动参数包含：随机本地 RPC 端口、随机 `--rpc-secret`、`--enable-rpc`、`--rpc-listen-all=false`、任务根目录、`--continue=true`、`--max-concurrent-downloads`、`--max-overall-download-limit`、`--stop-with-process=<App pid>`、日志文件等；
+2. 启动参数包含：随机本地 RPC 端口、随机 `--rpc-secret`、`--enable-rpc`、`--rpc-listen-all=false`、任务根目录、`--continue=true`、`--max-concurrent-downloads`、`--max-overall-download-limit`、日志文件等；**不使用 `--stop-with-process`**——该选项在 Android 16 真机导致 aria2 提前以 code 7 退出，改由前台服务停止时 `shutdown` + `waitFor` 回收；
 3. 用 `aria2.getVersion` 轮询等待就绪（最多约 10 秒），失败则标记相关任务失败并进入退避；
-4. 每个任务通过 `aria2.addUri` 创建，options 指定 `dir`（`staging/engines/aria2/tasks/<taskId>`）、`out`、`continue=true`、`auto-file-renaming=false`、`allow-overwrite=true`、`split`、`max-connection-per-server`、UA 等；gid 写入 `task.engineTaskId`；
-5. 每轮 `aria2.tellStatus` 更新进度/状态/速度/总长度：`active/waiting` → 下载中/连接中，`paused` → 暂停或自动恢复，`complete` → 发布，`error/removed` → 失败/重新排队；
-6. 全局限速与并发通过 `changeGlobalOption` 在设置变化时下发（`max-overall-download-limit`、`max-concurrent-downloads`）；
-7. 仅 Wi-Fi 时通过 `aria2.pause` 暂停任务并置 `WAITING_FOR_WIFI`，网络恢复后重新排队/继续；
-8. 进程停止（服务停止、所有 aria2 任务完成/暂停）时：清空内存 gid → 清空任务的 `engineTaskId` → `aria2.shutdown`/`forceShutdown` → `waitFor` 回收，3 秒未退出则强制杀死；
-9. **断点续传**：进程重启后 gid 必然失效，任务恢复时按原 URL 重新 `addUri` 且 `continue=true`，依赖任务目录中的 `.aria2` 控制文件从已有字节继续。
+4. **JSON-RPC 鉴权参数必须是 `token:<secret>`**（只传 secret 会被 aria2 以 HTTP 400 拒绝；已由 `Aria2RpcClient` 实现并用单测覆盖）；
+5. 每个任务通过 `aria2.addUri` 创建，options 指定 `dir`（`staging/engines/aria2/tasks/<taskId>`）、`out`、`continue=true`、`auto-file-renaming=false`、`allow-overwrite=true`、`split`、`max-connection-per-server`、UA 等；gid 写入 `task.engineTaskId`；
+6. 每轮 `aria2.tellStatus` 更新进度/状态/速度/总长度：`active/waiting` → 下载中/连接中，`paused` → 暂停或自动恢复，`complete` → 发布，`error/removed` → 失败/重新排队；
+7. 全局限速与并发通过 `changeGlobalOption` 在设置变化时下发（`max-overall-download-limit`、`max-concurrent-downloads`）；
+8. 仅 Wi-Fi 时通过 `aria2.pause` 暂停任务并置 `WAITING_FOR_WIFI`，网络恢复后重新排队/继续；
+9. 进程停止（服务停止、所有 aria2 任务完成/暂停）时：清空内存 gid → 清空任务的 `engineTaskId` → `aria2.shutdown`/`forceShutdown` → `waitFor` 回收，3 秒未退出则强制杀死；**真机 `am force-stop` 后确认无残留 aria2 进程**；
+10. **断点续传**：进程重启后 gid 必然失效，任务恢复时按原 URL 重新 `addUri` 且 `continue=true`，依赖任务目录中的 `.aria2` 控制文件从已有字节继续。
 
 ### 5.3 Gopeed AAR
 
@@ -343,7 +345,7 @@ macOS / Linux：把 `.\gradlew.bat` 换成 `./gradlew`。
 
 > Gradle wrapper 首次运行需联网下载 Gradle 8.9；网络受限时的镜像/离线处理见 [docs/BUILD_AND_SIGN.md](docs/BUILD_AND_SIGN.md) 第四节。
 
-### 6.4 原生产物（可选，但 v1.1.0 最终构建已放入）
+### 6.4 原生产物（可选；v1.1.1 最终构建已放入）
 
 不放入原生产物时，Gradle 构建仍可编译运行，只是设置页显示两个原生引擎不可用。要启用双内核，先在 Windows 上生成/获取产物：
 
@@ -352,36 +354,36 @@ macOS / Linux：把 `.\gradlew.bat` 换成 `./gradlew`。
 powershell -ExecutionPolicy Bypass -File native/gopeed/build.ps1
 # 产物：app/libs/libgopeed.aar（被 .gitignore 忽略）
 
-# 2) aria2 arm64 二进制（devgianlu/aria2-android v1.37.0，69,107,592 字节）
+# 2) aria2 arm64 二进制（devgianlu/aria2-android v1.35.0，5,872,304 字节）
 powershell -ExecutionPolicy Bypass -File native/aria2/fetch.ps1
 # 产物：app/src/main/jniLibs/arm64-v8a/libaria2c.so（被 .gitignore 忽略）
 ```
 
-**v1.1.0 最终构建实际使用的原生产物**：
+**v1.1.1 构建实际使用的原生产物**：
 
 | 产物 | 大小 | SHA-256 |
 | --- | --- | --- |
 | `app/libs/libgopeed.aar`（Gopeed v1.9.3，arm64） | 15,438,987 B | `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c` |
-| `app/src/main/jniLibs/arm64-v8a/libaria2c.so`（aria2 1.37.0，arm64） | 69,107,592 B | `dbfd705d437b6fe58a897b83bfafa07cd90972a369269bc2392a29e30fc7389a` |
+| `app/src/main/jniLibs/arm64-v8a/libaria2c.so`（aria2 1.35.0，arm64） | 5,872,304 B | `88b8b5feec7e4e7392f129fed4cf61f52a88fdc5dfe1e1464ed467fb41bd1a7f` |
 
 - `build.ps1` 固定 Go **1.24.11**、NDK **27.2.12479018**、Gopeed **v1.9.3**；`golang.org/x/mobile@latest` 要求 Go ≥ 1.26，因此 gomobile 实际通过 `GOTOOLCHAIN=auto` 使用 **go1.26.10** 工具链完成编译（x/mobile `v0.0.0-20261011034528-197770444867`）；详细记录见 `.tools/gopeed-build/BUILD_REPORT.md`（不提交仓库）。
 - AAR 内 `jni/arm64-v8a/libgojni.so` 为 43,908,776 B；APK 打包后位于 `lib/arm64-v8a/libgojni.so`。AAR 实际导出 `start`/`stop`（Java 入口类为 `com.gopeed.libgopeed.Libgopeed`），任务与进度通过内嵌 REST API 完成。
-- `fetch.ps1` 默认经 `gh-proxy.com` 下载 `aria2c-arm64-v8a`（69,107,592 字节），校验大小与 SHA-256，再复制为 `libaria2c.so`；本次二进制经 24 路 Range 分片下载获取，并与独立下载方核对哈希一致。
-- 两个产物均**不提交仓库**；正式发布前建议自行按 `devgianlu/aria2-android` 构建脚本重建 aria2 并记录 SBOM，降低供应链风险。
+- `fetch.ps1` 默认经 `gh-proxy.com` 下载 `aria2c-arm64-v8a`（**1.35.0**，5,872,304 字节，SHA-256 `88b8b5fe…bd1a7f`），校验大小与 SHA-256（默认 `-ExpectedSha256` 已固定），再复制为 `libaria2c.so`。该二进制静态链接 OpenSSL 1.1.1d、zlib 1.2.9、expat 2.2.9、c-ares 1.14.0、libssh2 1.9.0_DEV，替代了 v1.1.0 的 1.37.0/OpenSSL 3.0.0（后者在 Android 16 因缺 legacy provider 启动失败）。
+- 两个产物均**不提交仓库**；正式发布前建议自行按 `devgianlu/aria2-android` v1.35.0 构建脚本重新构建 aria2 并记录 SBOM，降低供应链风险（旧版本 OpenSSL/aria2 的 CVE 风险见 KI-30）。
 
-### 6.5 构建产物与体积
+### 6.5 构建产物与体积（v1.1.1 最终基线）
 
-**v1.1.0 最终构建（Windows，JDK 17.0.20）已通过 `:app:assembleDebug` 与 `:app:assembleRelease`（release 经 R8 + 演示签名），两个原生内核均已打包。**
+**v1.1.1 已在本地完成 `:app:assembleDebug` 与 `:app:assembleRelease`（release 经 R8 + 演示签名、`zipalign -P 16` 通过），两个原生内核与 17 个许可证文件均已打包；以下为 `dist/` 实测最终值（与 `dist/SHA256SUMS.txt` 一致）。**
 
-| 类型 | 路径 | 大小 | SHA-256（实际计算） |
+| 类型 | 路径 | 大小 | SHA-256 |
 | --- | --- | --- | --- |
-| Debug | `app/build/outputs/apk/debug/app-debug.apk` | 67,482,342 B（64.36 MB） | `b78789b787ff9a9465a45657b3a807de31460db10385581d3f410f3fbcff5689` |
-| Release | `app/build/outputs/apk/release/app-release.apk` | 38,559,243 B（36.77 MB） | `5272ca1e679786a05a7f4c3abf8f013a05f3a445996084341c33f86244155d5f` |
-| 分发副本 | `dist/MotrixLite-debug.apk` | 67,482,342 B | 同上（与构建产物一致） |
-| 分发副本 | `dist/MotrixLite-release.apk` | 38,559,243 B | 同上（与构建产物一致） |
-| 校验文件 | `dist/SHA256SUMS.txt` | — | 记录上述两个 APK 的大小与 SHA-256 |
+| Debug | `app/build/outputs/apk/debug/app-debug.apk` | **29,358,263 B（28.00 MB）** | `583b6846ff23fe2a68fb24b74038955ce1ea1b1bf313fbaed1c1ce8abf611bc4` |
+| Release | `app/build/outputs/apk/release/app-release.apk` | **18,771,902 B（17.90 MB）** | `a8b5be56898a8bc40f67e5158263c988f9c602067daa6fbcfb04fd911cbd2d5d` |
+| 分发副本 | `dist/MotrixLite-debug.apk` | 29,358,263 B | 同 Debug 产物 |
+| 分发副本 | `dist/MotrixLite-release.apk` | 18,771,902 B | 同 Release 产物 |
+| 校验文件 | `dist/SHA256SUMS.txt` | — | 记录上述两文件的 SHA-256 与大小 |
 
-> 说明：release 明显小于 debug，是因为 release 开启 R8 压缩/资源裁剪且不含 `ui-tooling` 等调试依赖；两者均包含 `lib/arm64-v8a/libaria2c.so`、`lib/arm64-v8a/libgojni.so` 与 `assets/licenses/` 的 16 个许可证文件（GPLv3/GPLv2/aria2/Gopeed/OpenSSL 3.0.0 Apache-2.0+版权/静态依赖许可证/DEPENDENCY-VERSIONS/SOURCE-OFFER/THIRD_PARTY_NOTICES）。以上为补齐许可证 assets 后的最终 rebuild，已用 `Get-FileHash` 与 `dist/SHA256SUMS.txt` 复核。APK 校验：
+> 说明：v1.1.1 因 aria2 二进制从 v1.1.0 的 69,107,592 B 降至 5,872,304 B，APK 显著缩小（v1.1.0 的 APK 基线已被取代，历史值以 GitHub Release 为准）。APK 内容已解包核验：`lib/arm64-v8a/libaria2c.so`（5,872,304 B）、`lib/arm64-v8a/libgojni.so`（43,908,776 B）与 `assets/licenses/` 17 个文件。校验命令：
 
 ```powershell
 Get-FileHash dist\MotrixLite-release.apk -Algorithm SHA256
@@ -430,16 +432,17 @@ keytool -genkeypair -v -keystore keystore\release.keystore -alias motrixlite `
 ```powershell
 # USB 调试
 adb devices
-adb install -r app\build\outputs\apk\release\app-release.apk
+adb install -r dist\MotrixLite-release.apk
+# 或使用 app\build\outputs\apk\release\app-release.apk
 ```
 
 也可以把 APK 传到手机，用文件管理器点击安装（需允许"安装未知来源应用"）。
 
 要求：
 
-- Android 8.0（API 26）及以上；
+- Android 8.0（API 26）及以上；已在 Android 16 / SDK 36（Redmi Turbo 4 Pro）上完成部分真机抽查；
 - **仅支持 arm64-v8a 设备**（x86 模拟器/wear 等其它 ABI 无法安装）；
-- 建议预留足够的可用空间：原生内核会显著增大 APK，下载大文件时还需 staging 空间（发布阶段峰值约为文件大小的 2 倍）。
+- 建议预留足够的可用空间：原生内核会增大 APK（v1.1.1 release 17.90 MB / debug 28.00 MB），下载大文件时还需 staging 空间（发布阶段峰值约为文件大小的 2 倍）。
 
 ### 7.2 首次启动建议
 
@@ -567,18 +570,18 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 
 ## 十、测试与验收状态
 
-### 10.1 本机已完成的验证（Windows，JDK 17.0.20）
+### 10.1 自动化与本地构建验证（Windows，JDK 17.0.20）
 
-| 项 | 结果 | 证据 |
+| 项 | 结果 | 说明 |
 | --- | --- | --- |
 | JVM 单元测试 | ✅ **32 / 32 通过** | **9 个测试类**；`app/build/reports/tests/testDebugUnitTest/index.html` |
-| `:app:assembleDebug` | ✅ 通过 | 已放入 `libgopeed.aar` 与 `libaria2c.so`；产物 67,482,342 B |
-| `:app:assembleRelease` | ✅ 通过 | R8 压缩 + 演示签名；产物 38,559,243 B |
-| APK 内容校验 | ✅ 通过 | 两个 APK 都包含 `lib/arm64-v8a/libaria2c.so`、`lib/arm64-v8a/libgojni.so` 与 `assets/licenses/` 的 16 个许可证文件（含 OpenSSL 3.0.0 Apache-2.0+版权、各静态依赖、DEPENDENCY-VERSIONS） |
-| Release 包 SHA-256 | ✅ 已计算 | `5272ca1e679786a05a7f4c3abf8f013a05f3a445996084341c33f86244155d5f`（debug 见 6.5） |
-| 真机安装与功能验收 | ❌ **未执行** | 本环境无 Android 设备/模拟器 |
+| `:app:assembleDebug` | ✅ 通过 | v1.1.1 本地构建成功；已放入 `libgopeed.aar`（15,438,987 B）与 `libaria2c.so`（1.35.0，5,872,304 B） |
+| `:app:assembleRelease` | ✅ 通过 | v1.1.1 本地构建成功（R8 + 演示签名） |
+| APK 内容 | ✅ 已核验 | 包含 `lib/arm64-v8a/libaria2c.so`、`libgojni.so` 与 `assets/licenses/` 的 **17 个**许可证文件 |
+| 最终 APK 基线 | ✅ 已实测 | debug **29,358,263 B（28.00 MB）** / SHA-256 `583b6846…f611bc4`；release **18,771,902 B（17.90 MB）** / SHA-256 `a8b5be56…cbd2d5d`；`zipalign -P 16` 通过；与 `dist/SHA256SUMS.txt` 一致 |
+| 完整真机验收 | ❌ **未完成** | 已完成部分真机抽查（见 10.2），A1–A7 / B / E1–E8 未逐项执行 |
 
-单元测试明细（测试类 9 个；1.1.0 新增 `Aria2RpcClientTest`、`GopeedApiTest`，各 3 个用例，`TaskJsonCodec` 新增 1 个引擎/旧 v1 兼容用例）：
+单元测试明细（测试类 9 个；`Aria2RpcClientTest`、`GopeedApiTest` 为 1.1.0 引入、1.1.1 保持通过；`TaskJsonCodec` 含 1 个引擎/旧 v1 兼容用例）：
 
 | 测试类 | 用例 | 覆盖点 |
 | --- | --- | --- |
@@ -589,25 +592,38 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 | `TaskJsonCodecTest` | 3 | v2 字段往返/运行期字段丢弃；**engine/旧 v1 默认 BUILTIN 兼容**；空/畸形数据 |
 | `HttpProbeTest` | 4 | Range 探测与元数据解析、无 Range 识别、HTTP 错误可重试性、`Content-Range` 解析 |
 | `TaskDownloaderTest` | 3 | 多段下载字节完全一致、暂停后续传字节一致、无 Range 服务器降级 |
-| `Aria2RpcClientTest` | 3 | `addUri` 的 secret/URL/options、`tellStatus` 解析与错误映射、`changeGlobalOption` 仅 OK 生效 |
+| `Aria2RpcClientTest` | 3 | `addUri` 的 **`token:<secret>`**/URL/options、`tellStatus` 解析与错误映射、`changeGlobalOption` 仅 OK 生效 |
 | `GopeedApiTest` | 3 | `createTask` 的 token/请求体、任务列表与 pause PUT、非零 envelope 抛错 |
 | **合计** | **32** | **全部通过** |
 
-> 说明：新增单测通过 MockWebServer 覆盖两个原生引擎的 **RPC/REST 客户端协议层**；`Aria2EngineController` / `GopeedEngineController` 的进程与 AAR 生命周期仍无 JVM 单测，依赖真机 E 系列验证。不能把 32/32 理解为"双内核已真机验证"。
+> 说明：单测通过 MockWebServer 覆盖两个原生引擎的 **RPC/REST 客户端协议层**（含 aria2 `token:<secret>` 鉴权格式）；`Aria2EngineController` / `GopeedEngineController` 的进程与 AAR 生命周期仍无 JVM 单测，依赖真机抽查/后续验收。
 
-### 10.2 尚未验证的内容（必须如实说明）
+### 10.2 真机抽查（2026-11-05，非完整验收）
 
-**本环境没有 Android 设备，也没有模拟器**，以下内容**全部待真机验证**，本文档不声称已通过：
+**测试设备**：Redmi 25053RT47C（Redmi Turbo 4 Pro），Android 16 / SDK 36，HyperOS OS3.0.306.0.WOLCNXM，arm64，4KB page，已 root。
 
-- 安装、启动、首屏渲染（红米 Turbo 4 Pro 未测试）；
-- 内置引擎真机多连接下载、锁屏/后台 10 分钟保活；
-- **Gopeed 引擎实际下载、断点续传、锁屏 10 分钟**；
-- **aria2 引擎实际下载、断点续传、锁屏 10 分钟、进程/会话恢复**；
-- 引擎切换后新旧任务分别使用各自引擎、双引擎任务并存；
-- 服务停止/杀进程后是否残留 `aria2c` 进程、Gopeed 端口/线程是否回收；
-- AAR/二进制加载失败时的提示与不闪退表现；
-- 许可证页面、源码 offer、完全对应源码的可获取性；
-- 通知权限拒绝降级、SAF、MediaStore 可见性、Android 15 前台服务时限、HyperOS 后台清理等原有项。
+| 抽查项 | 结果 | 说明 |
+| --- | --- | --- |
+| 内置引擎 50MB HTTP 下载/完成/发布 | ✅ | 发布到 `/sdcard/Download/MotrixLite/testfile.bin` |
+| 内置引擎暂停/继续 | ✅ | — |
+| 前台服务 + 通知 + 空闲停止 | ✅ | dataSync 前台服务、通知正常；空闲后服务停止 |
+| Gopeed 加载与 REST 服务启动 | ✅ | `libgojni.so` 加载成功；`GopeedEngine: Gopeed server started on port …` |
+| Gopeed 50MB 下载/发布/停服 | ✅ | 文件发布成功，无任务后服务停止 |
+| aria2 子进程 + JSON-RPC 鉴权 + 50MB 下载 | ✅ | 文件发布为 `testfile (N).bin`；RPC 鉴权使用 `token:<secret>` |
+| aria2 暂停/恢复 | ✅ | 完成/暂停后 aria2 进程消失，服务停止 |
+| 引擎切换 | ✅ | 设置页选择 Gopeed/aria2/内置后，新任务使用所选引擎并显示 badge；旧任务保留原引擎 |
+| aria2 锁屏 10 分钟 | ✅ | 23:14:56 锁屏 → 23:26 检查：日志从 448 KB 增至 20 MiB / 50 MiB，`PARTIAL_WAKE_LOCK 'MotrixLite:Download'` 持续持有，进程存活；`am force-stop` 后无 aria2 残留 |
+| v1.1.0 Android 16 aria2 失败复现 | ✅（历史） | `OSSL_PROVIDER_load 'legacy' failed`；v1.1.1 切 1.35.0/OpenSSL 1.1.1d 后修复 |
+
+### 10.3 尚未验证（本文不声称通过）
+
+本次真机工作属于**抽查**，不等于完整验收。以下项目仍未验证，需按 [docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md) 补测：
+
+- Gopeed 锁屏 10 分钟专项（设备锁屏后无法继续 UI 操作）；
+- 通知权限拒绝降级；
+- 5 任务并发压力、双引擎同时高负载；
+- 完整的 A1–A7 / B1–B8 / E1–E8 验收流（含 SAF、Android 15 FGS 时限、AAR/二进制加载失败提示、许可证页面逐项核对、进程/线程回收的完整 E6 等）；
+- 安装/启动的完整 A1 步骤（冷启动、旋转、设置页往返等未逐项执行）。
 
 真机验收请按 **[docs/TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)** 执行：A1–A7 为基础验收，B1–B8 为边界用例，**E1–E8 为双内核专项**，并把结果回填汇总表与本节。
 
@@ -630,7 +646,7 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 | KI-09 | 无校验和验证 | 无法发现内容损坏或被替换 |
 | KI-10 | 无开机自启 | 重启后需手动打开应用 |
 | KI-11 | 仅聚合通知，无每任务独立通知 | 通知栏无法单独控制任务 |
-| KI-12 | 未在真实红米 Turbo 4 Pro 上测试 | 真机行为未知 |
+| KI-12 | 真机仅完成部分抽查（红米 Turbo 4 Pro） | 完整 A1–A7/B1–B8/E1–E8 未执行，不能宣称已通过完整验收 |
 | KI-13 | 允许 HTTP 明文下载 | 内容可能被中间人篡改 |
 | KI-17 | 网络切换不会立即中断已有连接 | 可能产生少量蜂窝流量 |
 | **KI-23** | **Gopeed 不支持全局限速** | 限速设置对 Gopeed 任务不生效 |
@@ -640,7 +656,8 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 | **KI-27** | **双原生引擎可同时运行** | 内存/CPU/耗电与稳定性风险增加 |
 | **KI-28** | **并发上限不跨引擎统一** | 多引擎同时运行时实际活跃任务数可能超过设置 |
 | **KI-29** | **Gopeed 暂停后重建任务，续传行为待验证** | 暂停/恢复可能浪费已下载流量（待 E2 真机验证） |
-| **KI-30** | **供应链：OpenSSL 3.0.0 较旧、libssh2 为 dev 快照** | 潜在已知 CVE / 非正式发行版；建议重建或披露供应链时点 |
+| **KI-30** | **供应链：OpenSSL 1.1.1d/aria2 1.35.0 已停维护、libssh2 为 dev 快照** | 已知 CVE / 非正式发行版；建议重建或披露供应链时点 |
+| **KI-31** | **v1.1.0 的 aria2 1.37.0 在 Android 16 启动失败** | 已由 v1.1.1（1.35.0/OpenSSL 1.1.1d）修复并真机验证；历史 Release 保留 |
 
 ---
 
@@ -650,20 +667,20 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 | --- | --- | --- |
 | 本项目代码 | **GNU GPLv3** | 见 [LICENSE](LICENSE)；整体发布物按 GPLv3 分发 |
 | Gopeed v1.9.3 | **GPL-3.0** | gomobile AAR 链接进 App，构建脚本 `native/gopeed/build.ps1` |
-| aria2 1.37.0 | **GPL-2.0-or-later** | arm64 预编译二进制，子进程 + JSON-RPC，获取/校验脚本 `native/aria2/fetch.ps1`；仓库另有历史 `LICENSE.OpenSSL` 例外文本 |
+| aria2 1.35.0 | **GPL-2.0-or-later（含 OpenSSL 链接例外）** | arm64 预编译二进制，子进程 + JSON-RPC，获取/校验脚本 `native/aria2/fetch.ps1`；静态链接 OpenSSL 1.1.1d（OpenSSL+SSLeay，例外覆盖） |
 | Motrix 桌面版 | MIT | 仅参考产品与交互思路，**未使用其代码/资源/图标** |
 | Kotlin / Coroutines / OkHttp / AndroidX / Compose / Material3 | Apache-2.0 | 随 APK 分发 |
 | Go runtime（Gopeed AAR 内） | BSD-3-Clause | 随 APK 分发（实际编译工具链 go1.26.10） |
-| **OpenSSL 3.0.0（aria2 静态链接）** | **Apache-2.0** | 本二进制实际使用；附 `OpenSSL-3.0.0-Apache-2.0.txt` 与 `OpenSSL-3.0.0-COPYRIGHT.txt` |
-| zlib 1.2.11 / c-ares 1.18.1 / libexpat 2.4.1 / libssh2 1.9.0_DEV / libc++（NDK r23b） | zlib / MIT / MIT / BSD-3 / Apache-2.0 WITH LLVM-exception | aria2 静态链接依赖；版本与 commit 见 `licenses/DEPENDENCY-VERSIONS.md` |
+| **OpenSSL 1.1.1d（aria2 静态链接）** | **OpenSSL License + SSLeay License** | 本二进制实际使用；附 `OpenSSL-1.1.1d-LICENSE.txt` 与 aria2 例外文本 |
+| zlib 1.2.9 / c-ares 1.14.0 / libexpat 2.2.9 / libssh2 1.9.0_DEV / libc++（clang 8.0.7 工具链） | zlib / MIT / MIT / BSD-3 / Apache-2.0 WITH LLVM-exception | aria2 静态链接依赖；版本与 commit 见 `licenses/DEPENDENCY-VERSIONS.md` |
 
-**完整许可证文本**：随最终 APK 打包在 `assets/licenses/`（16 个文件，已解包核验），同时存放于仓库 `licenses/` 与 `native/licenses/`，包括 GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 3.0.0 Apache-2.0 全文+版权、各静态依赖许可证、历史 OpenSSL 例外说明、依赖版本清单与 SOURCE-OFFER、THIRD_PARTY_NOTICES。
+**完整许可证文本**：随最终 APK 打包在 `assets/licenses/`（**17 个文件**，已解包核验），同时存放于仓库 `licenses/` 与 `native/licenses/`，包括 GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 1.1.1d 双许可证、aria2 OpenSSL 例外、各静态依赖许可证、Apache-2.0 全文、依赖版本清单、SOURCE-OFFER 与 THIRD_PARTY_NOTICES。
 
 **对应源码（Corresponding Source）与构建脚本**：
 
 - 本项目全部源码（含引擎集成代码、构建脚本、资源）：`https://github.com/Chenzhenyan0/motrix-lite`
 - Gopeed v1.9.3：`https://github.com/GopeedLab/gopeed/tree/v1.9.3`
-- aria2 1.37.0：`https://github.com/aria2/aria2/tree/release-1.37.0`；二进制构建参考 `https://github.com/devgianlu/aria2-android`
+- aria2 1.35.0：`https://github.com/aria2/aria2/tree/release-1.35.0`；二进制构建参考 `https://github.com/devgianlu/aria2-android`
 - 可复现构建：`native/gopeed/build.ps1`（Go 1.24.11 / NDK 27.2.12479018 / Gopeed v1.9.3）、`native/aria2/fetch.ps1`（固定版本与校验），以及 Gradle wrapper。
 
 **书面要约**：对物理介质分发等场景，我们提供至少三年有效的对应源码获取要约；可通过仓库 Issue 联系。详见 [licenses/SOURCE-OFFER.txt](licenses/SOURCE-OFFER.txt) 与 [docs/COMPLIANCE.md](docs/COMPLIANCE.md)。
@@ -673,18 +690,18 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 **商标**：Motrix 的名称与商标归其作者所有。本项目为**非官方独立实现**，不使用 Motrix 官方图标、Logo 或品牌视觉素材，与官方无隶属、赞助或背书关系；Gopeed、aria2 名称仅用于事实描述。
 
 ---
----
 
 ## 十三、版本历史（GitHub Releases）
 
 | 版本 | 日期 | 主要变化 | Release 链接 |
 | --- | --- | --- | --- |
-| **v1.1.0** | 2026-11-05 | 双下载内核（内置 / Gopeed / aria2）、整体 GPLv3、任务 schema v2、32/32 JVM 单测；APK 含 arm64 原生库与许可证资产 | https://github.com/Chenzhenyan0/motrix-lite/releases/tag/v1.1.0 |
-| **v1.0.0** | 2026-11-05 | 首版：仅内置 OkHttp 内核、MIT 许可、25/25 JVM 单测；已被 v1.1.0 取代 | https://github.com/Chenzhenyan0/motrix-lite/releases/tag/v1.0.0 |
+| **v1.1.1** | 2026-11-05 | 修复 Android 16 aria2 兼容性（改用 aria2 1.35.0/OpenSSL 1.1.1d）；修复 JSON-RPC `token:<secret>` 鉴权、移除 `--stop-with-process`；32/32 单测；部分真机抽查通过；最终 APK debug 28.00 MB / release 17.90 MB（SHA-256 见 §6.5） | `https://github.com/Chenzhenyan0/motrix-lite/releases` |
+| **v1.1.0** | 2026-11-05 | 首个双内核版本（内置 / Gopeed / aria2 1.37.0 + OpenSSL 3.0.0）、整体 GPLv3、任务 schema v2、32/32 JVM 单测。**已知问题：在 Android 16（Redmi Turbo 4 Pro）上 aria2 内核启动失败（`OSSL_PROVIDER_load 'legacy' failed`），已被 v1.1.1 取代**；历史 Release 保留不删除 | https://github.com/Chenzhenyan0/motrix-lite/releases |
+| **v1.0.0** | 2026-11-05 | 首版：仅内置 OkHttp 内核、MIT 许可、25/25 JVM 单测；已被 v1.1.1 取代 | https://github.com/Chenzhenyan0/motrix-lite/releases |
 
 > GitHub 仓库主页右侧的 Releases 只显示“最新版本”；**完整历史版本列表**请打开：
 > https://github.com/Chenzhenyan0/motrix-lite/releases
-> 每个历史版本的 APK、`SHA256SUMS.txt`、源码归档与许可证附件都会保留，不会被新版本覆盖。
+> 每个历史版本的 APK、`SHA256SUMS.txt`、源码归档与许可证附件都会保留，不会被新版本覆盖；v1.1.0 的 Release 说明需补注 Android 16 aria2 启动失败并被 v1.1.1 取代。
 
 ## 附录 A：命令速查
 
@@ -773,4 +790,4 @@ macOS / Linux：把 `.\gradlew.bat` 换成 `./gradlew`，路径分隔符换成 `
 
 ---
 
-**Motrix Lite 1.1.0** · GNU GPLv3 · 三引擎（内置 / Gopeed / aria2）· 非官方独立实现 · **未在真机验收，使用前请阅读 [已知问题](docs/KNOWN_ISSUES.md)**
+**Motrix Lite 1.1.1** · GNU GPLv3 · 三引擎（内置 / Gopeed / aria2）· 非官方独立实现 · **已完成部分真机抽查（Android 16），完整验收仍待补；使用前请阅读 [已知问题](docs/KNOWN_ISSUES.md)**

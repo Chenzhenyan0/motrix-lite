@@ -1,39 +1,43 @@
 # 第三方组件与许可声明（THIRD PARTY NOTICES）
 
-本文件列出 Motrix Lite Android 应用（版本 1.1.0，包名 `com.motrixlite.downloader`）所使用的第三方开源组件、许可证类型，以及是否随 APK 分发。
+本文件列出 Motrix Lite Android 应用（版本 **1.1.1**，versionCode 3，包名 `com.motrixlite.downloader`）所使用的第三方开源组件、许可证类型，以及是否随 APK 分发。
 
 - 本工程整体按 **GNU GPLv3** 分发，见 [LICENSE](LICENSE)；第三方组件各自保留其原许可证。
 - 依赖版本以 `app/build.gradle.kts`、`native/gopeed/build.ps1`、`native/aria2/fetch.ps1` 为准（唯一事实来源）。
-- 完整许可证文本随 APK 打包在 `app/src/main/assets/licenses/`，并同时存放在仓库 `licenses/` 与 `native/licenses/`。
+- 完整许可证文本随最终 APK 打包在 `app/src/main/assets/licenses/`（17 个文件），并同时存放在仓库 `licenses/` 与 `native/licenses/`。
 - 本文档只做许可信息归集，**不构成法律意见**；涉及再分发、商用或上架时请自行复核许可证原文。
+
+> 版本提示：**v1.1.0** 曾使用 devgianlu aria2 1.37.0（静态链接 OpenSSL 3.0.0），在 Redmi Turbo 4 Pro / Android 16 上启动失败（`OSSL_PROVIDER_load 'legacy' failed`），已被 **v1.1.1 取代**。v1.1.1 改用 aria2 1.35.0（静态链接 OpenSSL 1.1.1d，适用 aria2 的 `LICENSE.OpenSSL` 链接例外）。历史 Release 保留，不删除。
 
 ---
 
-## 一、随 APK 分发的原生产生组件（1.1.0 新增）
+## 一、随 APK 分发的原生组件
 
 | 组件 | 版本 | 许可证 | 集成形态 | 说明 |
 | --- | --- | --- | --- | --- |
 | Gopeed | `v1.9.3`（commit `a5cd53f94c18ac65add684b1113fa5f0b47cc4da`） | **GPL-3.0** | `libgopeed.aar`（gomobile，Go 内核），**与 App 同进程**，通过 JNI/反射调用 | 与 App 构成结合作品，导致整体必须 GPLv3；AAR 15,438,987 B，SHA-256 `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c`；源码：https://github.com/GopeedLab/gopeed/tree/v1.9.3；构建：`native/gopeed/build.ps1`（安装 Go 1.24.11、NDK 27.2.12479018，gomobile 实际用 go1.26.10 toolchain） |
-| aria2 | `1.37.0`（源码 commit `02f2d0d8472b3c38c29b4dba8c75ebd5fdd2899a`） | **GPL-2.0-or-later** | 预编译 arm64 可执行文件，重命名为 `jniLibs/arm64-v8a/libaria2c.so`，运行时子进程 + JSON-RPC | aria2 仓库提供历史 `LICENSE.OpenSSL` 链接例外（针对旧 OpenSSL/SSLeay 双许可证），**不覆盖本二进制实际使用的 OpenSSL 3.0.0**；整体按 GPLv3 分发（GPLv3 与 Apache-2.0 兼容）。二进制来源 devgianlu/aria2-android `v1.37.0`（69,107,592 B，SHA-256 `dbfd705d437b6fe58a897b83bfafa07cd90972a369269bc2392a29e30fc7389a`）；源码：https://github.com/aria2/aria2/tree/release-1.37.0；获取/校验：`native/aria2/fetch.ps1` |
+| aria2 | **`1.35.0`**（源码 commit `7f79854b2ed6ef4978a8526831034b34b1fb3871`） | **GPL-2.0-or-later**（含 OpenSSL 链接例外，适用本二进制） | 预编译 arm64 可执行文件，重命名为 `jniLibs/arm64-v8a/libaria2c.so`，运行时子进程 + JSON-RPC | 来源 devgianlu/aria2-android `v1.35.0`（5,872,304 B，SHA-256 `88b8b5feec7e4e7392f129fed4cf61f52a88fdc5dfe1e1464ed467fb41bd1a7f`，ELF64 ET_DYN AArch64）；源码：https://github.com/aria2/aria2/tree/release-1.35.0；获取/校验：`native/aria2/fetch.ps1` |
+| OpenSSL（aria2 静态链接） | **1.1.1d**（2019-09-10；devgianlu v1.35.0 的 openssl submodule pin `894da2fb7ed5d314ee5c2fc9fd2d9b8b74111596`） | **OpenSSL License + SSLeay License**（双许可证） | 静态链接进 `libaria2c.so` | 真机 `aria2 --version` 显示 `OpenSSL/1.1.1d`；**aria2 的 `LICENSE.OpenSSL` 链接例外适用于该许可证版本** |
+| zlib（aria2 静态链接） | **1.2.9**（pin `2fa463bacfff79181df1a5270fb67cc679a53e71`） | zlib License | 静态链接进 `libaria2c.so` | 真机 `--version` 显示 `zlib/1.2.9` |
+| c-ares（aria2 静态链接） | **1.14.0**（pin `e982924acee7f7313b4baa4ee5ec000c5e373c30`） | MIT | 静态链接进 `libaria2c.so` | 真机 `--version` 显示 `c-ares/1.14.0` |
+| libexpat（aria2 静态链接） | **2.2.9**（pin `a7bc26b69768f7fb24f0c7976fae24b157b85b13`） | MIT | 静态链接进 `libaria2c.so` | 真机 `--version` 显示 `expat/2.2.9`；aria2 构建时 `--without-libxml2`、`--without-sqlite3` |
+| libssh2（aria2 静态链接） | **1.9.0_DEV**（开发快照，pin `42d37aa63129a1b2644bf6495198923534322d64`） | BSD-3-Clause | 静态链接进 `libaria2c.so` | 真机 `--version` 显示 `libssh2/1.9.0_DEV`；非正式发行版，复现构建需按 pin 检出 |
+| libc++（aria2 静态链接） | clang **8.0.7**（2019 Android NDK 工具链） | Apache-2.0 WITH LLVM-exception | 静态链接进 `libaria2c.so` | 真机 `--version` 显示 `Compiler: clang 8.0.7` |
 | Go runtime（Gopeed AAR 内） | 随实际编译工具链 **go1.26.10**（安装的 Go 主版本为 1.24.11，`GOTOOLCHAIN=auto` 自动切换） | **BSD-3-Clause** | 静态编译进 `libgopeed.aar`（`libgojni.so` 43,908,776 B） | Go 标准库与运行时版权声明随 AAR 分发；构建记录见 `native/gopeed/build.ps1` 与 `.tools/gopeed-build/BUILD_REPORT.md` |
-| OpenSSL（aria2 静态链接） | **3.0.0**（2021-09-07；devgianlu v1.37.0 的 openssl submodule pin `89cd17a031e022211684eb7eb41190cf1910f9fa`） | **Apache-2.0** | 静态链接进 `libaria2c.so` | 证据：该 pin 的 `VERSION.dat` 为 MAJOR=3/MINOR=0/PATCH=0，二进制含 `OSSL_PROVIDER_load`、`OSSL_LIB_CTX_*`、`EVP_MD_fetch` 等 OpenSSL 3 API；须随附 Apache-2.0 全文与 OpenSSL 版权声明（`OpenSSL-3.0.0-Apache-2.0.txt`、`OpenSSL-3.0.0-COPYRIGHT.txt`） |
-| libssh2（aria2 静态链接） | **1.9.0_DEV**（开发快照，submodule pin `635caa90787220ac3773c1d5ba11f1236c22eae8`） | BSD-3-Clause | 静态链接进 `libaria2c.so` | aria2 以 `--with-libssh2` 构建；非正式发行版，复现构建需按 pin 检出（`libssh2-1.9.0-BSD-3-Clause.txt`） |
-| c-ares（aria2 静态链接） | **1.18.1**（pin `2aa086f822aad5017a6f2061ef656f237a62d0ed`） | MIT | 静态链接进 `libaria2c.so` | aria2 以 `--with-libcares` 构建（`c-ares-1.18.1-MIT.txt`） |
-| libexpat（aria2 静态链接） | **2.4.1**（pin `a28238bdeebc087071777001245df1876a11f5ee`） | MIT | 静态链接进 `libaria2c.so` | aria2 以 `--with-libexpat` 构建；构建时 `--without-libxml2`、`--without-sqlite3`（`libexpat-2.4.1-MIT.txt`） |
-| zlib（aria2 静态链接） | **1.2.11**（pin `cacf7f1d4e3d44d871b605da3b647f07d718623f`） | zlib License | 静态链接进 `libaria2c.so` | aria2 以 `--with-libz` 构建（`zlib-1.2.11-zlib-license.txt`） |
-| libc++（aria2 静态链接） | NDK **r23b** 工具链（clang/LLVM 12.0.8） | Apache-2.0 WITH LLVM-exception | 静态链接进 `libaria2c.so` | 构建参数 `-static-libstdc++`；`.comment` 记录 clang 12.0.8 / LLD 12.0.8 |
 
-> **说明 1（aria2 二进制来源的许可状态与 OpenSSL 事实修正）**：devgianlu/aria2-android 仓库本身**没有声明 LICENSE/COPYING**（截至 2026-11-05 核查，GitHub API 返回 `license: null`）。该 v1.37.0 预编译二进制**实际静态链接 OpenSSL 3.0.0（Apache-2.0）**（openssl submodule pin `89cd17a031e022211684eb7eb41190cf1910f9fa`，`VERSION.dat = 3.0.0`，二进制含 `OSSL_PROVIDER_load` 等 3.x API），**不是**旧文档所称的 OpenSSL 1.1.1 / SSLeay 双许可证。aria2 仓库中的 `LICENSE.OpenSSL` 是历史链接例外文本（针对旧 OpenSSL/SSLeay），**不能用来解释本二进制与 OpenSSL 3.0.0 的组合**；本工程整体按 GPLv3 分发，GPLv3 与 Apache-2.0 兼容，因此组合分发成立，但必须随附 Apache-2.0 全文与 OpenSSL 版权声明。分发该预编译二进制时，许可义务来自 aria2（GPL-2.0-or-later）及其静态链接依赖各自的许可证；随附源码获取方式、构建文件快照与全部许可证文本，并建议发布前自行按构建脚本重建。核查记录见 `licenses/devgianlu-aria2-android-LICENSE`、`licenses/DEPENDENCY-VERSIONS.md` 与 `native/sources/devgianlu-build-files.zip`。
+> **说明 1（aria2 + OpenSSL 1.1.1d 的许可关系）**：aria2 为 **GPL-2.0-or-later**；其仓库提供了 OpenSSL 链接例外文件 `LICENSE.OpenSSL`，明确允许与"许可证与 `LICENSE.OpenSSL` 中所列文本 identical"的 OpenSSL 版本链接。**OpenSSL 1.1.1d 使用 OpenSSL License + SSLeay License 双许可证，正是该例外适用的对象**，因此 aria2 1.35.0 + OpenSSL 1.1.1d 的组合可以按 GPLv2+ 分发；完整例外文本与 OpenSSL/SSLeay 许可证已随包提供（`aria2-LICENSE.OpenSSL`、`aria2-OpenSSL-Exception.txt`、`OpenSSL-1.1.1d-LICENSE.txt`）。整个 App 另含 Gopeed，按 GPLv3 分发，GPLv3 与 GPLv2+ 兼容。
 >
-> **说明 2（Gopeed Go 依赖）**：Gopeed AAR 静态包含 Go 模块依赖（`go.mod`/`go.sum` 锁定）。完整模块清单与各自许可证应以构建时 `go version -m libgopeed.so`、`go list -m all` 与 `go.sum` 为准，并随 Release 源码归档提供；Gopeed 自身主许可证为 GPL-3.0。
+> **说明 2（aria2 二进制来源的许可状态）**：devgianlu/aria2-android 仓库本身**没有声明 LICENSE/COPYING**（截至 2026-11-05 核查，GitHub API 返回 `license: null`）。分发该预编译二进制时，其许可义务来自 aria2（GPL-2.0-or-later）及其静态链接依赖各自的许可证；本工程随附源码获取方式、构建文件快照（`native/sources/devgianlu-build-files-v1.35.0.zip`）与全部许可证文本，并建议发布前自行按构建脚本重建。核查记录见 `licenses/devgianlu-aria2-android-LICENSE`、`licenses/DEPENDENCY-VERSIONS.md`。
 >
-> **说明 3（Motrix）**：Motrix 桌面版为 MIT；本项目仅参考其产品定位与交互思路，**未使用其代码、界面资源、图标或品牌素材**，不属于本 APK 的分发组件。
+> **说明 3（Gopeed Go 依赖）**：Gopeed AAR 静态包含 Go 模块依赖（`go.mod`/`go.sum` 锁定）。完整模块清单与各自许可证应以构建时 `go version -m libgopeed.so`、`go list -m all` 与 `go.sum` 为准，并随 Release 源码归档提供；Gopeed 自身主许可证为 GPL-3.0。
 >
-> **说明 4（供应链提示）**：OpenSSL 3.0.0 发布于 2021-09，后续 3.0.x 已修复多个 CVE；libssh2 pin 为 1.9.0_DEV 开发快照（非正式发行版）。正式分发前建议用更新版本 OpenSSL/libssh2 重新构建 aria2，或至少在 Release 说明中披露该供应链时点与风险（见 [KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) KI-30）。
+> **说明 4（安全/供应链提示）**：OpenSSL 1.1.1d（2019-09）与 aria2 1.35.0（2019-10）**均已停止维护，存在已知 CVE**；libssh2 为 1.9.0_DEV 开发快照。本版本为兼容 Android 16 而沿用旧预编译二进制；正式分发前建议用受支持的 OpenSSL（1.1.1w / 3.x）与新版 aria2 按 devgianlu 构建脚本自行复现，并同步更新 `licenses/DEPENDENCY-VERSIONS.md` 与哈希（见 [KNOWN_ISSUES.md](docs/KNOWN_ISSUES.md) KI-30）。
+>
+> **说明 5（Motrix）**：Motrix 桌面版为 MIT；本项目仅参考其产品定位与交互思路，**未使用其代码、界面资源、图标或品牌素材**，不属于本 APK 的分发组件。
 
 ---
 
-## 二、随 APK 分发的 JVM/Android 运行时组件（与 1.0.0 相同）
+## 二、随 APK 分发的 JVM/Android 运行时组件
 
 | 组件 | 版本 | 许可证 | 用途 | 备注 |
 | --- | --- | --- | --- | --- |
@@ -54,7 +58,7 @@
 | androidx.compose.ui:ui-tooling（debug） | 由 BOM 决定 | Apache-2.0 | 仅调试构建的预览工具 | 仅 debug 包 |
 | androidx.compose.ui:ui-test-manifest（debug） | 由 BOM 决定 | Apache-2.0 | 仅调试构建 | 仅 debug 包 |
 
-> 说明：构建脚本 `packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }` 会把部分 AAR 中的许可证占位文件从 APK 中排除。1.1.0 的补偿措施是：**在 APK `assets/licenses/` 中打包完整许可证全文**（GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 3.0.0 Apache-2.0 全文+版权、各静态依赖许可证、历史 OpenSSL 例外说明、DEPENDENCY-VERSIONS、SOURCE-OFFER），并在应用内「设置 → 关于 → 开源许可 / 源码获取」提供说明与源码地址；仓库同时保留 `THIRD_PARTY_NOTICES.md` 与 `licenses/`。若再分发 APK，请一并提供本文件与 `LICENSE`。
+> 说明：构建脚本 `packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }` 会把部分 AAR 中的许可证占位文件从 APK 中排除。1.1.1 的补偿措施是：**在 APK `assets/licenses/` 中打包完整许可证全文**（GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 1.1.1d 许可证、历史 OpenSSL 例外、各静态依赖许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、Apache-2.0.txt、THIRD_PARTY_NOTICES），并在应用内「设置 → 关于 → 开源许可 / 源码获取」提供说明与源码地址；仓库同时保留 `THIRD_PARTY_NOTICES.md` 与 `licenses/`。若再分发 APK，请一并提供本文件与 `LICENSE`。
 
 ---
 
@@ -65,7 +69,7 @@
 | Android Gradle Plugin | 8.7.3 | Apache-2.0 | 构建 |
 | Kotlin Gradle Plugin（`org.jetbrains.kotlin.android`、`...plugin.compose`） | 2.0.21 | Apache-2.0 | 构建 |
 | Gradle Wrapper / Gradle | 8.9 | Apache-2.0 | 构建 |
-| Go 工具链 | 1.24.11 | BSD-3-Clause | 构建 Gopeed AAR（`native/gopeed/build.ps1`） |
+| Go 工具链 | 1.24.11（实际 gomobile 编译用 go1.26.10） | BSD-3-Clause | 构建 Gopeed AAR（`native/gopeed/build.ps1`） |
 | Android NDK | 27.2.12479018 | 各组件许可证（LLVM/Android NDK 条款） | 构建 Gopeed AAR |
 | gomobile / gobind | 由 `go install ...@latest` 安装 | BSD-3-Clause | gomobile bind |
 | JUnit 4 | 4.13.2 | EPL-1.0 | 单元测试 |
@@ -101,22 +105,23 @@
 | --- | --- | --- |
 | GNU GPLv3 全文 | `LICENSE`、`licenses/GPL-3.0.txt`、APK `assets/licenses/GPL-3.0.txt` | https://www.gnu.org/licenses/gpl-3.0.txt |
 | GNU GPLv2 全文 | `licenses/GPL-2.0.txt`、APK `assets/licenses/GPL-2.0.txt` | https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt |
-| Gopeed LICENSE（GPL-3.0） | `licenses/Gopeed-LICENSE.txt`、`native/licenses/Gopeed-LICENSE` | https://github.com/GopeedLab/gopeed/blob/v1.9.3/LICENSE |
-| aria2 COPYING（GPLv2） | `licenses/aria2-COPYING.txt`、`native/licenses/aria2-COPYING` | https://github.com/aria2/aria2/blob/release-1.37.0/COPYING |
-| aria2 OpenSSL 链接例外（`LICENSE.OpenSSL`，历史文本） | `licenses/aria2-LICENSE.OpenSSL`、`native/licenses/aria2-LICENSE.OpenSSL`（全文）、`aria2-OpenSSL-Exception.txt`（说明：该例外针对旧 OpenSSL/SSLeay，不覆盖本二进制实际使用的 OpenSSL 3.0.0） | https://github.com/aria2/aria2/blob/release-1.37.0/LICENSE.OpenSSL |
-| **OpenSSL 3.0.0 许可证（实际使用）** | `licenses/OpenSSL-3.0.0-Apache-2.0.txt`（Apache-2.0 全文）、`licenses/OpenSSL-3.0.0-COPYRIGHT.txt`、APK `assets/licenses/` 同名文件 | https://www.openssl.org/source/license.html 、https://www.apache.org/licenses/LICENSE-2.0 |
-| zlib 1.2.11 许可证 | `licenses/zlib-1.2.11-zlib-license.txt` | https://opensource.org/license/zlib |
-| c-ares 1.18.1 / libexpat 2.4.1（MIT） | `licenses/c-ares-1.18.1-MIT.txt`、`licenses/libexpat-2.4.1-MIT.txt` | https://opensource.org/license/mit |
-| libssh2 1.9.0_DEV（BSD-3-Clause） | `licenses/libssh2-1.9.0-BSD-3-Clause.txt` | https://opensource.org/license/bsd-3-clause |
-| 依赖版本/commit 清单 | `licenses/DEPENDENCY-VERSIONS.md`、APK `assets/licenses/DEPENDENCY-VERSIONS.md` | `native/sources/devgianlu-build-files.zip`（构建文件快照） |
-| 源码获取要约 | `licenses/SOURCE-OFFER.txt`、APK `assets/licenses/SOURCE-OFFER.txt` | 本仓库 Release / Issue |
+| Gopeed LICENSE（GPL-3.0） | `licenses/Gopeed-LICENSE.txt`、APK `assets/licenses/Gopeed-LICENSE.txt` | https://github.com/GopeedLab/gopeed/blob/v1.9.3/LICENSE |
+| aria2 COPYING（GPLv2） | `licenses/aria2-COPYING.txt`、APK `assets/licenses/aria2-COPYING.txt` | https://github.com/aria2/aria2/blob/release-1.35.0/COPYING |
+| aria2 OpenSSL 链接例外（`LICENSE.OpenSSL`） | `licenses/aria2-LICENSE.OpenSSL`、`aria2-OpenSSL-Exception.txt`（说明该例外适用于 OpenSSL/SSLeay 双许可证版本，如 1.1.1d） | https://github.com/aria2/aria2/blob/release-1.35.0/LICENSE.OpenSSL |
+| OpenSSL 1.1.1d（OpenSSL License + SSLeay License） | `licenses/OpenSSL-1.1.1d-LICENSE.txt` | https://www.openssl.org/source/license.html |
+| zlib 1.2.9 许可证 | `licenses/zlib-1.2.9-zlib-license.txt` | https://opensource.org/license/zlib |
+| c-ares 1.14.0 / libexpat 2.2.9（MIT） | `licenses/c-ares-1.14.0-MIT.txt`、`licenses/libexpat-2.2.9-MIT.txt` | https://opensource.org/license/mit |
+| libssh2 1.9.0_DEV（BSD-3-Clause） | `licenses/libssh2-1.9.0_DEV-BSD-3-Clause.txt` | https://opensource.org/license/bsd-3-clause |
+| Apache-2.0 全文 | `licenses/Apache-2.0.txt`（Kotlin/AndroidX/libc++ 等） | https://www.apache.org/licenses/LICENSE-2.0 |
+| 依赖版本/commit 清单 | `licenses/DEPENDENCY-VERSIONS.md` | `native/sources/devgianlu-build-files-v1.35.0.zip`（构建文件快照） |
+| 源码获取要约 | `licenses/SOURCE-OFFER.txt` | 本仓库 Release / Issue |
 | 第三方组件清单 | `THIRD_PARTY_NOTICES.md`、APK `assets/licenses/THIRD_PARTY_NOTICES.md` | 本文件 |
-| Apache-2.0 / MIT / BSD-3 / EPL-1.0 / zlib | 各组件 AAR/源码内声明；本文档列出适用范围 | https://www.apache.org/licenses/LICENSE-2.0 、https://opensource.org/license/mit 、https://opensource.org/license/bsd-3-clause 、https://www.eclipse.org/legal/epl-1.0/ 、https://opensource.org/license/zlib |
+| 二进制构建仓库许可状态 | `licenses/devgianlu-aria2-android-LICENSE` | GitHub API 核查记录 |
 
-> v1.1.0 最终构建的 APK `assets/licenses/` 已包含以下 16 个文件：`GPL-3.0.txt`、`GPL-2.0.txt`、`aria2-COPYING.txt`、`aria2-LICENSE.OpenSSL`、`aria2-OpenSSL-Exception.txt`、`Gopeed-LICENSE.txt`、`OpenSSL-3.0.0-Apache-2.0.txt`、`OpenSSL-3.0.0-COPYRIGHT.txt`、`zlib-1.2.11-zlib-license.txt`、`c-ares-1.18.1-MIT.txt`、`libexpat-2.4.1-MIT.txt`、`libssh2-1.9.0-BSD-3-Clause.txt`、`DEPENDENCY-VERSIONS.md`、`devgianlu-aria2-android-LICENSE`、`SOURCE-OFFER.txt`、`THIRD_PARTY_NOTICES.md`（已通过解包最终 APK 核验）。
+> v1.1.1 最终 APK 的 `assets/licenses/` 包含 17 个文件（上述文本 + `README.md` 索引），已随 APK 打包；最终 APK：debug 29,358,263 B（28.00 MB）/ SHA-256 `583b6846…f611bc4`，release 18,771,902 B（17.90 MB）/ SHA-256 `a8b5be56…cbd2d5d`（完整值见 `dist/SHA256SUMS.txt` 与 Release 页面）。
 
 如发现清单遗漏或许可证标注错误，请在项目仓库提交 issue 更正。
 
 ---
 
-**一句话总结**：Motrix Lite 1.1.0 打包了 Gopeed（GPL-3.0）与 aria2（GPL-2.0-or-later，静态链接 OpenSSL 3.0.0 / Apache-2.0），因此**整个 APK 按 GPLv3 分发**；任何包含这两个内核的 APK 都**不能闭源分发**。
+**一句话总结**：Motrix Lite 1.1.1 打包了 Gopeed（GPL-3.0）与 aria2 1.35.0（GPL-2.0-or-later，静态链接 OpenSSL 1.1.1d，适用 aria2 的 OpenSSL 链接例外），因此**整个 APK 按 GPLv3 分发**；任何包含这两个内核的 APK 都**不能闭源分发**。
