@@ -673,6 +673,18 @@ Manifest 声明 `android:foregroundServiceType="dataSync"`，运行时传入 `FO
 **商标**：Motrix 的名称与商标归其作者所有。本项目为**非官方独立实现**，不使用 Motrix 官方图标、Logo 或品牌视觉素材，与官方无隶属、赞助或背书关系；Gopeed、aria2 名称仅用于事实描述。
 
 ---
+---
+
+## 十三、版本历史（GitHub Releases）
+
+| 版本 | 日期 | 主要变化 | Release 链接 |
+| --- | --- | --- | --- |
+| **v1.1.0** | 2026-11-05 | 双下载内核（内置 / Gopeed / aria2）、整体 GPLv3、任务 schema v2、32/32 JVM 单测；APK 含 arm64 原生库与许可证资产 | https://github.com/Chenzhenyan0/motrix-lite/releases/tag/v1.1.0 |
+| **v1.0.0** | 2026-11-05 | 首版：仅内置 OkHttp 内核、MIT 许可、25/25 JVM 单测；已被 v1.1.0 取代 | https://github.com/Chenzhenyan0/motrix-lite/releases/tag/v1.0.0 |
+
+> GitHub 仓库主页右侧的 Releases 只显示“最新版本”；**完整历史版本列表**请打开：
+> https://github.com/Chenzhenyan0/motrix-lite/releases
+> 每个历史版本的 APK、`SHA256SUMS.txt`、源码归档与许可证附件都会保留，不会被新版本覆盖。
 
 ## 附录 A：命令速查
 
