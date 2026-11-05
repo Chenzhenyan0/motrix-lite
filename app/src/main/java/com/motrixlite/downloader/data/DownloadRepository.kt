@@ -96,6 +96,9 @@ class DownloadRepository(
             speedHistory = emptyList(),
             publishProgress = -1f,
             error = if (recoveredState == TaskState.QUEUED) null else task.error,
+            // 原生引擎的进程内 ID 在进程重启后必然失效；清空后由 EngineController 重新 addUri/创建任务。
+            engineTaskId = if (task.isNativeEngine) null else task.engineTaskId,
+            engineStatus = if (task.isNativeEngine) null else task.engineStatus,
         )
     }
 
@@ -136,6 +139,7 @@ class DownloadRepository(
             createdAt = System.currentTimeMillis(),
             saveMode = settings.saveMode,
             safTreeUri = if (settings.saveMode == SaveMode.SAF) settings.safTreeUri else null,
+            engine = settings.downloadEngine,
         )
         _tasks.update { it + task }
         persistNow()
@@ -193,6 +197,23 @@ class DownloadRepository(
                 segments = source.segments,
             )
         }
+        requestSave()
+    }
+
+    /** 原生引擎的任务 ID / 原始状态回写（aria2 gid、Gopeed task id 等）。 */
+    fun updateEngineInfo(id: String, engineTaskId: String? = null, engineStatus: String? = null) {
+        mutate(id) { task ->
+            task.copy(
+                engineTaskId = engineTaskId ?: task.engineTaskId,
+                engineStatus = engineStatus ?: task.engineStatus,
+            )
+        }
+        requestSave()
+    }
+
+    /** 原生引擎（aria2/Gopeed）在服务重启后 ID 会失效，需要清空后重新 add。 */
+    fun clearEngineTaskId(id: String) {
+        mutate(id) { it.copy(engineTaskId = null, engineStatus = null) }
         requestSave()
     }
 
@@ -281,6 +302,8 @@ class DownloadRepository(
                         speedBytesPerSec = 0L,
                         publishProgress = -1f,
                         error = null,
+                        engineTaskId = null,
+                        engineStatus = null,
                         downloadedBytes = if (task.totalBytes > 0) task.totalBytes else task.downloadedBytes,
                     )
                 }

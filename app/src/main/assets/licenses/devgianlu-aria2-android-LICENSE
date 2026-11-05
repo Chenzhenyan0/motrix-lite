@@ -1,0 +1,26 @@
+devgianlu/aria2-android -- license status notice
+================================================
+
+Upstream repository: https://github.com/devgianlu/aria2-android
+Snapshot ref: master, checked 2026-11-05 (UTC+8).
+
+Finding: this repository does NOT contain a LICENSE/COPYING file and does not
+declare a license. Evidence gathered via the GitHub REST API:
+  GET https://api.github.com/repos/devgianlu/aria2-android
+      -> "license": null
+  GET https://api.github.com/repos/devgianlu/aria2-android/license
+      -> HTTP 404 (no license file)
+  GET https://api.github.com/repos/devgianlu/aria2-android/contents/?ref=master
+      -> no LICENSE/COPYING entry
+
+The repository only provides build scripts that cross-compile aria2 and its
+dependencies (openssl, libssh2, c-ares, libexpat, zlib) for Android. The
+resulting binary is a derivative work of aria2, which is licensed under the
+GNU General Public License version 2 (see licenses/aria2-COPYING), and of the
+bundled libraries which carry their own licenses:
+  - OpenSSL 1.1.1 (see build_openssl.sh for the pinned source tag)
+  - libssh2, c-ares, libexpat, zlib (see .gitmodules in the build-files zip)
+
+Redistribution of the prebuilt binary therefore remains governed by GPLv2 and
+the dependency licenses. Motrix Lite ships the binary unmodified and provides
+the corresponding source material under native/sources/.

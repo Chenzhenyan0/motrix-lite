@@ -1,0 +1,30 @@
+Motrix Lite - Source Code Offer / 对应源码获取说明
+
+本应用（Motrix Lite 1.1.0）包含以下 GPL 组件，整体按 GNU GPL v3.0 分发：
+
+1) Gopeed v1.9.3 (GPL-3.0)
+   源码: https://github.com/GopeedLab/gopeed/tree/v1.9.3
+   构建: native/gopeed/build.ps1（gomobile bind，Go 1.24.11，NDK 27.2.12479018）
+
+2) aria2 1.37.0 (GPL-2.0-or-later，含 OpenSSL 例外)
+   源码: https://github.com/aria2/aria2/tree/release-1.37.0
+   二进制构建参考: https://github.com/devgianlu/aria2-android
+   打包/获取: native/aria2/fetch.ps1
+
+本应用源码（含引擎集成代码、构建脚本、许可证文件）：
+   https://github.com/Chenzhenyan0/motrix-lite
+   Release 页面另附源码归档（gopeed-v1.9.3-src、aria2-1.37.0-src、build-scripts、licenses）。
+
+完整的 Corresponding Source 也可通过仓库 Issue 联系获取；我们提供至少三年有效的书面要约，
+并可按要求提供物理介质副本（仅收取介质成本）。
+
+许可证文本见本目录与 APK assets/licenses/：
+GPL-3.0.txt、GPL-2.0.txt、aria2-COPYING.txt、aria2-OpenSSL-Exception.txt、Gopeed-LICENSE.txt
+
+本应用非 Motrix 官方产品；Motrix 仅作为产品思路参考（MIT）。
+
+补充（aria2 1.37.0 预编译二进制的静态依赖，来自 devgianlu/aria2-android 构建）：
+- OpenSSL 3.0.0（Apache-2.0）：licenses/OpenSSL-3.0.0-Apache-2.0.txt、OpenSSL-3.0.0-COPYRIGHT.txt
+- zlib 1.2.11、c-ares 1.18.1（MIT）、libexpat 2.4.1（MIT）、libssh2 1.9.0_DEV（BSD-3-Clause）、libc++（NDK r23b）
+- 依赖版本与 commit 见 licenses/DEPENDENCY-VERSIONS.md 与 native/sources/devgianlu-build-files.zip
+- aria2 的 LICENSE.OpenSSL 例外为历史文本；因整包按 GPLv3 分发、GPLv3 与 Apache-2.0 兼容，组合分发成立，故同时附 Apache-2.0 全文。

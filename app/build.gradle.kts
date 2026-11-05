@@ -21,9 +21,13 @@ android {
         applicationId = "com.motrixlite.downloader"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
         buildConfigField("String", "APP_FLAVOR", "\"standard\"")
+        ndk {
+            // 原生内核只随 arm64 提供（aria2c arm64 二进制 + gomobile arm64 AAR）。
+            abiFilters += listOf("arm64-v8a")
+        }
     }
 
     if (keystorePropertiesFile.exists()) {
@@ -74,6 +78,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            // aria2c 需要从 nativeLibraryDir 执行，必须让系统在安装时解压 native 库。
+            useLegacyPackaging = true
+        }
     }
 
     testOptions {
@@ -82,6 +90,11 @@ android {
 }
 
 dependencies {
+    // 可选原生内核：本地存在 AAR 时打包；仓库源码不包含二进制，构建前运行 native/gopeed/build.ps1。
+    if (file("libs/libgopeed.aar").exists()) {
+        implementation(files("libs/libgopeed.aar"))
+    }
+
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

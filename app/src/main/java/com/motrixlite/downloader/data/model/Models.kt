@@ -62,6 +62,23 @@ enum class ThemeMode {
     DARK,
 }
 
+/**
+ * 下载引擎。BUILTIN 为项目自研 OkHttp 内核；GOPEED/ARIA2 为新增的原生内核。
+ * 任务创建时固定，之后不随设置切换而改变。
+ */
+enum class DownloadEngine {
+    BUILTIN,
+    GOPEED,
+    ARIA2;
+
+    val displayName: String
+        get() = when (this) {
+            BUILTIN -> "内置引擎"
+            GOPEED -> "Gopeed"
+            ARIA2 -> "aria2"
+        }
+}
+
 data class AppSettings(
     val maxConcurrentTasks: Int = 3,
     val connectionsPerTask: Int = 8,
@@ -75,6 +92,8 @@ data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val notificationPermissionAsked: Boolean = false,
     val hideSetupCard: Boolean = false,
+    /** 新建任务默认使用的下载引擎；已有任务保留各自引擎。 */
+    val downloadEngine: DownloadEngine = DownloadEngine.BUILTIN,
 )
 
 data class DownloadTask(
@@ -108,6 +127,12 @@ data class DownloadTask(
     val stagingName: String,
     val saveMode: SaveMode = SaveMode.MEDIASTORE,
     val safTreeUri: String? = null,
+    /** 固定于创建任务时；切换设置不影响已有任务。 */
+    val engine: DownloadEngine = DownloadEngine.BUILTIN,
+    /** 原生引擎内部任务 ID（aria2 gid / Gopeed task id）；进程重启后会清空重建。 */
+    val engineTaskId: String? = null,
+    /** 原生引擎的原始状态字符串，便于诊断。 */
+    val engineStatus: String? = null,
 
     // ------- 仅运行期字段，不参与持久化 -------
     val speedBytesPerSec: Long = 0L,
@@ -127,6 +152,9 @@ data class DownloadTask(
 
     val extension: String
         get() = fileName.substringAfterLast('.', "").lowercase().take(5)
+
+    val isNativeEngine: Boolean
+        get() = engine != DownloadEngine.BUILTIN
 
     val displaySize: String
         get() = when {
