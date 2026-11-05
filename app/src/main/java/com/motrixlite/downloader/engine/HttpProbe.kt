@@ -144,7 +144,7 @@ class HttpProbe(private val client: okhttp3.OkHttpClient) {
     )
 
     companion object {
-        const val USER_AGENT = "MotrixLite/1.0 (Android; okhttp)"
+        const val USER_AGENT = "MotrixLite/1.1 (Android; okhttp)"
 
         fun parseTotalFromContentRange(header: String?): Long? {
             if (header.isNullOrBlank()) return null

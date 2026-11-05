@@ -13,6 +13,8 @@ import com.motrixlite.downloader.App
 import com.motrixlite.downloader.R
 import com.motrixlite.downloader.data.RepoEvent
 import com.motrixlite.downloader.data.model.TaskState
+import com.motrixlite.downloader.engine.native.Aria2EngineController
+import com.motrixlite.downloader.engine.native.GopeedEngineController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,6 +23,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * 下载前台服务。
@@ -36,6 +39,8 @@ class DownloadService : Service() {
     private lateinit var container: com.motrixlite.downloader.AppContainer
     private lateinit var notificationHelper: NotificationHelper
     private lateinit var coordinator: com.motrixlite.downloader.engine.DownloadCoordinator
+    private lateinit var aria2Controller: Aria2EngineController
+    private lateinit var gopeedController: GopeedEngineController
     private var wakeLock: PowerManager.WakeLock? = null
     private var monitorJob: Job? = null
     private var foregroundStarted = false
@@ -57,6 +62,24 @@ class DownloadService : Service() {
             client = container.httpClient,
             rateLimiter = container.rateLimiter,
             stagingDir = container.stagingDir,
+        )
+
+        val engineRoot = File(container.stagingDir, "engines")
+        aria2Controller = Aria2EngineController(
+            context = this,
+            repository = container.repository,
+            settingsRepository = container.settingsRepository,
+            publisher = container.publisher,
+            networkMonitor = container.networkMonitor,
+            engineRootDir = File(engineRoot, "aria2"),
+        )
+        gopeedController = GopeedEngineController(
+            context = this,
+            repository = container.repository,
+            settingsRepository = container.settingsRepository,
+            publisher = container.publisher,
+            networkMonitor = container.networkMonitor,
+            engineRootDir = File(engineRoot, "gopeed"),
         )
 
         serviceScope.launch {
@@ -97,6 +120,8 @@ class DownloadService : Service() {
                 else -> Unit
             }
             coordinator.start()
+            aria2Controller.start()
+            gopeedController.start()
         }
         return START_STICKY
     }
@@ -195,6 +220,8 @@ class DownloadService : Service() {
 
     override fun onDestroy() {
         coordinator.stop()
+        aria2Controller.stop()
+        gopeedController.stop()
         monitorJob?.cancel()
         updateWakeLock(false)
         container.applicationScope.launch { runCatching { container.repository.flush() } }

@@ -1,5 +1,6 @@
 package com.motrixlite.downloader.data
 
+import com.motrixlite.downloader.data.model.DownloadEngine
 import com.motrixlite.downloader.data.model.DownloadTask
 import com.motrixlite.downloader.data.model.SaveMode
 import com.motrixlite.downloader.data.model.Segment
@@ -10,10 +11,11 @@ import org.json.JSONObject
 /**
  * 任务持久化编解码。使用 platform org.json，无反射，便于单元测试。
  * 每个字段都有默认值，升级 schema 时保持向后兼容。
+ * v2: 增加 engine / engineTaskId / engineStatus。
  */
 object TaskJsonCodec {
 
-    private const val VERSION = 1
+    private const val VERSION = 2
 
     fun encode(tasks: List<DownloadTask>): String {
         val root = JSONObject()
@@ -61,6 +63,9 @@ object TaskJsonCodec {
         put("stagingName", task.stagingName)
         put("saveMode", task.saveMode.name)
         put("safTreeUri", task.safTreeUri ?: JSONObject.NULL)
+        put("engine", task.engine.name)
+        put("engineTaskId", task.engineTaskId ?: JSONObject.NULL)
+        put("engineStatus", task.engineStatus ?: JSONObject.NULL)
         val segments = JSONArray()
         task.segments.forEach { segment ->
             segments.put(
@@ -82,6 +87,8 @@ object TaskJsonCodec {
                 .getOrDefault(TaskState.PAUSED)
             val saveMode = runCatching { SaveMode.valueOf(obj.optString("saveMode", SaveMode.MEDIASTORE.name)) }
                 .getOrDefault(SaveMode.MEDIASTORE)
+            val engine = runCatching { DownloadEngine.valueOf(obj.optString("engine", DownloadEngine.BUILTIN.name)) }
+                .getOrDefault(DownloadEngine.BUILTIN)
             val segmentsJson = obj.optJSONArray("segments") ?: JSONArray()
             val segments = ArrayList<Segment>(segmentsJson.length())
             for (i in 0 until segmentsJson.length()) {
@@ -118,6 +125,9 @@ object TaskJsonCodec {
                 stagingName = obj.optString("stagingName", "$id.part"),
                 saveMode = saveMode,
                 safTreeUri = obj.optString("safTreeUri", "").takeIf { it.isNotBlank() },
+                engine = engine,
+                engineTaskId = obj.optString("engineTaskId", "").takeIf { it.isNotBlank() },
+                engineStatus = obj.optString("engineStatus", "").takeIf { it.isNotBlank() },
             )
         } catch (_: Exception) {
             null

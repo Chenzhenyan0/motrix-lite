@@ -3,6 +3,7 @@ package com.motrixlite.downloader.engine
 import com.motrixlite.downloader.data.DownloadRepository
 import com.motrixlite.downloader.data.SettingsRepository
 import com.motrixlite.downloader.data.model.AppSettings
+import com.motrixlite.downloader.data.model.DownloadEngine
 import com.motrixlite.downloader.data.model.TaskState
 import com.motrixlite.downloader.network.NetworkMonitor
 import com.motrixlite.downloader.storage.DestinationPublisher
@@ -97,17 +98,18 @@ class DownloadCoordinator(
                 activeJobs.remove(id)?.cancel()
             }
 
-            // 2. Wi-Fi 恢复后，把等待中的任务重新排队
+            // 2. Wi-Fi 恢复后，把等待中的任务重新排队（仅内置引擎；原生引擎由各自 Controller 处理）
             if (networkAllowed) {
-                tasks.filter { it.desiredRunning && it.state == TaskState.WAITING_FOR_WIFI }
+                tasks.filter { it.engine == DownloadEngine.BUILTIN && it.desiredRunning && it.state == TaskState.WAITING_FOR_WIFI }
                     .forEach { repository.setState(it.id, TaskState.QUEUED, null) }
             }
 
-            // 3. 按并发上限启动排队任务
+            // 3. 按并发上限启动排队任务（本调度器只处理内置引擎）
             var slots = settings.maxConcurrentTasks - activeJobs.size
             if (slots <= 0) return@synchronized
             for (task in tasks) {
                 if (slots <= 0) break
+                if (task.engine != DownloadEngine.BUILTIN) continue
                 if (!task.desiredRunning || task.state != TaskState.QUEUED) continue
                 if (activeJobs.containsKey(task.id)) continue
                 if (settings.wifiOnly && !network.wifi) {
@@ -130,6 +132,7 @@ class DownloadCoordinator(
             var autoRetry = 0
             while (true) {
                 val task = repository.task(id) ?: return
+                if (task.engine != DownloadEngine.BUILTIN) return
                 if (!task.desiredRunning || task.state.isFinished || task.state == TaskState.PAUSED) return
 
                 val downloader = TaskDownloader(

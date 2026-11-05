@@ -2,6 +2,7 @@ package com.motrixlite.downloader.data
 
 import android.content.Context
 import com.motrixlite.downloader.data.model.AppSettings
+import com.motrixlite.downloader.data.model.DownloadEngine
 import com.motrixlite.downloader.data.model.SaveMode
 import com.motrixlite.downloader.data.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +42,8 @@ class SettingsRepository(context: Context) {
 
     fun setThemeMode(value: ThemeMode) = update { it.copy(themeMode = value) }
 
+    fun setDownloadEngine(value: DownloadEngine) = update { it.copy(downloadEngine = value) }
+
     fun setSaveMode(value: SaveMode) = update { it.copy(saveMode = value) }
 
     fun setSafTreeUri(uri: String?) = update { it.copy(safTreeUri = uri, saveMode = if (uri.isNullOrBlank()) it.saveMode else SaveMode.SAF) }
@@ -71,6 +74,9 @@ class SettingsRepository(context: Context) {
         }.getOrDefault(ThemeMode.SYSTEM),
         notificationPermissionAsked = prefs.getBoolean(KEY_NOTIFICATION_ASKED, false),
         hideSetupCard = prefs.getBoolean(KEY_HIDE_SETUP_CARD, false),
+        downloadEngine = runCatching {
+            DownloadEngine.valueOf(prefs.getString(KEY_DOWNLOAD_ENGINE, DownloadEngine.BUILTIN.name)!!)
+        }.getOrDefault(DownloadEngine.BUILTIN),
     )
 
     private fun persist(settings: AppSettings) {
@@ -86,6 +92,7 @@ class SettingsRepository(context: Context) {
             .putString(KEY_THEME_MODE, settings.themeMode.name)
             .putBoolean(KEY_NOTIFICATION_ASKED, settings.notificationPermissionAsked)
             .putBoolean(KEY_HIDE_SETUP_CARD, settings.hideSetupCard)
+            .putString(KEY_DOWNLOAD_ENGINE, settings.downloadEngine.name)
             .apply()
     }
 
@@ -102,5 +109,6 @@ class SettingsRepository(context: Context) {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_NOTIFICATION_ASKED = "notification_asked"
         private const val KEY_HIDE_SETUP_CARD = "hide_setup_card"
+        private const val KEY_DOWNLOAD_ENGINE = "download_engine"
     }
 }

@@ -73,6 +73,14 @@ fun TaskCard(
                     Spacer(Modifier.height(3.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         StateLabel(task.state)
+                        if (task.engine != com.motrixlite.downloader.data.model.DownloadEngine.BUILTIN) {
+                            Text(
+                                text = " · ${task.engine.displayName}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                maxLines = 1,
+                            )
+                        }
                         val detail = detailLine(task)
                         if (detail != null) {
                             Text(
