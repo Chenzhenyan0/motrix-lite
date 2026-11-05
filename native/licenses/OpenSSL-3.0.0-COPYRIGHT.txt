@@ -1,0 +1,27 @@
+OpenSSL 3.0.0 -- copyright and attribution notice
+=================================================
+
+This product includes software developed by the OpenSSL Project for use in
+the OpenSSL Toolkit (https://www.openssl.org/).
+
+Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved. (legacy
+OpenSSL/SSLeay code retained in parts of the source)
+
+OpenSSL 3.0.0 is licensed under the Apache License, Version 2.0 (the full
+license text is stored in native/licenses/OpenSSL-3.0.0-Apache-2.0.txt;
+canonical copy: https://www.apache.org/licenses/LICENSE-2.0).
+
+Provenance of the version used by the packaged binary:
+- devgianlu/aria2-android v1.37.0 pins submodule `openssl` at commit
+  89cd17a031e022211684eb7eb41190cf1910f9fa (git tree of tag v1.37.0).
+- VERSION.dat at that commit:
+    MAJOR=3 / MINOR=0 / PATCH=0 / RELEASE_DATE="7 sep 2021"
+  fetched via https://raw.githubusercontent.com/openssl/openssl/89cd17a031e022211684eb7eb41190cf1910f9fa/VERSION.dat
+- The packaged libaria2c.so contains OpenSSL 3 provider API symbols
+  (OSSL_PROVIDER_load, OSSL_LIB_CTX_*, EVP_MD_fetch), confirming OpenSSL 3.x.
+
+Note: OpenSSL 3.0.0 is NOT covered by aria2's legacy LICENSE.OpenSSL
+exception text (that text describes the old OpenSSL + SSLeay dual license).
+The combined work is redistributed under GPLv3 (Motrix Lite is GPLv3 and
+aria2 is GPL-2.0-or-later), and Apache-2.0 is compatible with GPLv3.

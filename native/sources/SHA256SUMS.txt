@@ -1,0 +1,36 @@
+# Motrix Lite -- SHA-256 checksums for aria2 compliance material
+# Scope: files downloaded by the aria2-preparer task (licenses + sources) and
+# the aria2 binary packaged as an Android native library.
+# Paths are relative to the motrix-lite project root.
+# Verify on Linux/macOS:  cd motrix-lite && sha256sum -c native/sources/SHA256SUMS.txt
+# Verify on Windows:      Get-Content native/sources/SHA256SUMS.txt | ForEach-Object { ... }
+#
+# Generated: 2026-11-05T13:47:21Z
+
+# --- licenses ---
+8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643  native/licenses/aria2-COPYING
+8bf8790acc763bbae4e03f90fd28ee25acdf6daadd3b2adc90101365a403ed07  native/licenses/aria2-LICENSE.OpenSSL
+3f06f5ac9e92f9e210625ee2c00b3071212b3b0e65be557044a7306b775691e5  native/licenses/aria2-OpenSSL-Exception.txt
+db4eb63fe09daebdf57d3f79b091bb5ee5070c0d761040e83264e648d307af4c  native/licenses/c-ares-1.18.1-MIT.txt
+0fd52d5708b6b2a711cad626744c1956f1db45b3e9c55e173d82cf539982ece5  native/licenses/DEPENDENCY-VERSIONS.md
+ea9e1a59a703422dd0a38dfc400f852418b711d9dc86227cb935d33a3ad4671e  native/licenses/devgianlu-aria2-android-LICENSE
+3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986  native/licenses/Gopeed-LICENSE
+8c6b5b6de8fae20b317f4992729abc0e520bfba4c7606cd1e9eeb87418eebdec  native/licenses/libexpat-2.4.1-MIT.txt
+859e60d760a3446ecaf777339f1eef98c527aea40714384d24b882a83ffdd23a  native/licenses/libssh2-1.9.0-BSD-3-Clause.txt
+7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a  native/licenses/OpenSSL-3.0.0-Apache-2.0.txt
+e6312c74bf39fe1c9b294b36f4af19c0cca16091948684984e53fd4117353427  native/licenses/OpenSSL-3.0.0-COPYRIGHT.txt
+3a98716ad1fe3c88e95a5a6ee35e3cb2812e518698a3a6ed000d79c893b1fe70  native/licenses/zlib-1.2.11-zlib-license.txt
+
+# --- sources ---
+9104878396cc30441976afdd3af9331ec51306fabf92fb82724c3b8fa7d72932  native/sources/aria2-1.37.0.tar.gz
+e8762666e4d73968726cb990ad1e13e388c2622ef94acee6b44c18851c292db0  native/sources/devgianlu-build-files.zip
+c71bf4cb36442dd4a7f12272a31c0eb8448c2e20402428bfb4777580c8307619  native/sources/gopeed-v1.9.3.zip
+a71f92d2bc7a52e7eabd4476a19f68c58a0dd010048bc31d7ac4597b639273d7  native/sources/README.md
+
+# --- documents ---
+5c2a8689367a47d4386d33db6e09f819981cff8afeeddbd7b251de4c6f4ed44a  native/README-ARIA2-BINARY.md
+
+# --- packaged binary (ignored by git; verify after fetching/reproducing) ---
+dbfd705d437b6fe58a897b83bfafa07cd90972a369269bc2392a29e30fc7389a  app/src/main/jniLibs/arm64-v8a/libaria2c.so
+# upstream asset: aria2c-arm64-v8a (devgianlu/aria2-android v1.37.0), 69107592 bytes
+# binary SHA-256 in .tools workspace copy: dbfd705d437b6fe58a897b83bfafa07cd90972a369269bc2392a29e30fc7389a
