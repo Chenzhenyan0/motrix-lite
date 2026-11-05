@@ -35,7 +35,7 @@ class Aria2RpcClientTest {
         val body = JSONObject(request.body.readUtf8())
         assertEquals("aria2.addUri", body.getString("method"))
         val params = body.getJSONArray("params")
-        assertEquals("tok-123", params.getString(0))
+        assertEquals("token:tok-123", params.getString(0))
         assertEquals("https://example.com/a.bin", params.getJSONArray(1).getString(0))
         assertEquals("/tmp", params.getJSONObject(2).getString("dir"))
         assertEquals("a.bin", params.getJSONObject(2).getString("out"))

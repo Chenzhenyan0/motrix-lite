@@ -1,9 +1,9 @@
 # 已知问题与限制（KNOWN ISSUES）
 
-本文列出 Motrix Lite 1.1.0 已知的功能缺失、限制与缺陷。**"已知限制"不等于"缺陷"**：部分条目是当前产品范围或 Android 平台的客观约束，已在 UI 或文档中明示。
+本文列出 Motrix Lite 1.1.1 已知的功能缺失、限制与缺陷。**"已知限制"不等于"缺陷"**：部分条目是当前产品范围或 Android 平台的客观约束，已在 UI 或文档中明示。
 
-- 当前版本：1.1.0（versionCode 2）
-- 验证环境：Windows 构建（`:app:assembleDebug` + `:app:assembleRelease`，均含两个原生内核，release 经 R8 + 演示签名）+ 32 个 JVM 单元测试（9 个测试类）；**无 Android 真机/模拟器**，故未做真机验收
+- 当前版本：1.1.1（versionCode 3）
+- 验证环境：Windows 构建（`:app:assembleDebug` + `:app:assembleRelease`，均含两个原生内核，release 经 R8 + 演示签名）+ 32 个 JVM 单元测试（9 个测试类）；**已在 Redmi Turbo 4 Pro / Android 16 上完成部分真机抽查**（三引擎下载、引擎切换、aria2 锁屏 10 分钟等），完整验收未完成
 - 状态说明：`未修复` / `产品范围` / `平台限制` / `待验证`
 
 ## 总览
@@ -21,7 +21,7 @@
 | KI-09 | 无文件校验和验证 | 功能缺失 | 中 | 未修复 |
 | KI-10 | 无开机自启 | 功能缺失 | 中 | 平台限制 |
 | KI-11 | 仅一条聚合进度通知，无每任务独立通知 | 限制 | 低 | 设计取舍 |
-| KI-12 | 未在真实红米 Turbo 4 Pro 上测试 | 验证缺口 | 高 | 待验证 |
+| KI-12 | 真机仅完成部分抽查（红米 Turbo 4 Pro） | 验证缺口 | 高 | 部分验证 |
 | KI-13 | 允许 HTTP 明文下载 | 安全 | 中 | 设计取舍 |
 | KI-14 | 任务持久化为单 JSON 全量重写 | 限制 | 低 | 设计取舍 |
 | KI-15 | 无代理、无自定义请求头、无 UA 伪装 | 功能缺失 | 中 | 产品范围 |
@@ -39,7 +39,8 @@
 | **KI-27** | **两个原生引擎可同时运行，资源占用增加** | 限制 | 中 | 待真机验证 |
 | **KI-28** | **并发上限不跨引擎统一** | 限制 | 低 | 设计取舍 |
 | **KI-29** | **Gopeed 暂停后服务停止/重建，续传行为待验证** | 待验证 | 中 | 待验证 |
-| **KI-30** | **静态依赖供应链：OpenSSL 3.0.0 较旧、libssh2 为 dev 快照** | 供应链/安全 | 中 | 待缓解 |
+| **KI-30** | **静态依赖供应链：OpenSSL 1.1.1d/aria2 1.35.0 已停维护、libssh2 为 dev 快照** | 供应链/安全 | 中 | 待缓解 |
+| **KI-31** | **v1.1.0 的 aria2 1.37.0 在 Android 16 启动失败（已修复）** | 兼容性 | 高 | 已修复（v1.1.1） |
 
 ---
 
@@ -175,15 +176,15 @@
 
 ---
 
-## KI-12 未在真实红米 Turbo 4 Pro 上测试
+## KI-12 真机仅完成部分抽查（红米 Turbo 4 Pro）
 
 | 项 | 内容 |
 | --- | --- |
-| 现象 | 本仓库的验证只包含：Windows 上的 `:app:assembleDebug` / `:app:assembleRelease` 构建（APK 已含 libaria2c.so 与 libgojni.so）、32 个 JVM 单元测试。**没有**在真实设备（包括红米 Turbo 4 Pro）上执行安装、后台下载、双引擎下载、HyperOS 保活等验收。 |
-| 原因 | 开发环境没有 Android 设备或模拟器，也没有可用的云真机。 |
-| 影响 | 以下内容均属**未验证**：内置引擎真机下载与保活、Gopeed/aria2 实际下载与断点续传、引擎切换与双引擎并存、进程回收、MediaStore 实际落盘路径、通知展示、SAF 授权持久性、大文件稳定性。 |
-| 当前规避 | 提供 [TEST_CHECKLIST.md](TEST_CHECKLIST.md)（A1–A7 + B1–B8 + E1–E8，含最终 APK 基线大小/哈希），每条含前置条件、步骤、预期与结果记录栏，可在真机上直接执行。 |
-| 后续计划 | 完成真机验收后回填结果，并更新 README 的"验证状态"。**在回填之前，任何"已通过真机验收"的说法都不成立。** |
+| 现象 | 已在 Redmi 25053RT47C（Redmi Turbo 4 Pro，Android 16 / SDK 36，HyperOS OS3.0.306.0.WOLCNXM）上抽查：内置/Gopeed/aria2 50MB HTTP 下载与发布、内置暂停/继续、前台服务与通知、引擎切换、aria2 暂停/恢复、aria2 锁屏 10 分钟、force-stop 后无残留 aria2 进程。**没有**逐项执行 A1–A7/B1–B8/E1–E8。 |
+| 原因 | 抽查时间/操作条件有限（设备锁屏后无法继续 UI 操作等），完整清单尚未逐项执行。 |
+| 影响 | **未验证**：Gopeed 锁屏 10 分钟专项、通知权限拒绝降级、5 任务并发压力、SAF 授权、Android 15 FGS 时限、AAR/二进制加载失败提示、完整许可证页面核对、双引擎高负载稳定性。 |
+| 当前规避 | 提供 [TEST_CHECKLIST.md](TEST_CHECKLIST.md)（A1–A7 + B1–B8 + E1–E8），每条含前置条件、步骤、预期与结果记录栏；README §10.2 记录本次抽查范围。 |
+| 后续计划 | 按 TEST_CHECKLIST 完成完整真机验收后回填结果。**在完整验收完成前，任何"已通过全部真机验收"的说法都不成立。** |
 
 ---
 
@@ -335,10 +336,10 @@
 
 | 项 | 内容 |
 | --- | --- |
-| 现象 | v1.1.0 最终 APK 显著大于 1.0.0（1.41 MB）：debug **67,482,342 B（64.36 MB）**、release **38,559,243 B（36.77 MB）**；aria2 二进制约 69 MB，Gopeed AAR 15,438,987 B。 |
+| 现象 | v1.1.1 最终 APK 大于 1.0.0（1.41 MB）：debug **29,358,263 B（28.00 MB，SHA-256 `583b6846…f611bc4`）**、release **18,771,902 B（17.90 MB，SHA-256 `a8b5be56…cbd2d5d`）**；aria2 二进制约 5.87 MB（1.35.0），Gopeed AAR 15,438,987 B。 |
 | 原因 | aria2 为静态链接可执行文件，Gopeed AAR 包含 Go runtime 与内核（`libgojni.so` 43,908,776 B）。 |
 | 影响 | 安装/更新慢、低端机存储紧张；部分应用商店对 APK 大小有限制。 |
-| 当前规避 | 仅打包 arm64-v8a；未放入原生产物时仍可构建轻量版本（引擎显示不可用）；release 已开启 R8/资源裁剪以降低体积。 |
+| 当前规避 | 仅打包 arm64-v8a；未放入原生产物时仍可构建轻量版本（引擎显示不可用）；release 已开启 R8/资源裁剪；v1.1.1 的 aria2 二进制从 69.1 MB 降至 5.87 MB，APK 显著缩小。 |
 | 后续计划 | 评估按变体（flavor）拆分"轻量版/双内核版"；关注 aria2 精简构建与 AAR 裁剪空间。 |
 
 ---
@@ -350,7 +351,7 @@
 | 现象 | aria2 使用 devgianlu/aria2-android 的预编译 arm64 二进制；该仓库**未声明 LICENSE**，二进制可能包含未披露的补丁或额外库。Gopeed AAR 的 Go 模块依赖也未逐项列入主文档。 |
 | 原因 | 本环境不具备 Linux/NDK 交叉编译 aria2 的条件；Gopeed AAR 需下载 Go/NDK 工具链构建。 |
 | 影响 | 供应链完整性、许可证可追溯性与 GPL 对应源码义务需要额外核对；不能仅凭"来自 GitHub Release"视为安全。 |
-| 当前规避 | `native/aria2/fetch.ps1` 固定版本、大小（69,107,592 B）与 SHA-256；本次 aria2 二进制经 24 路 Range 分片下载，最终 SHA-256 `dbfd705d…fc7389a` 与独立下载核对一致；AAR 记录 SHA-256 `aa064e34…dd2d7c`（15,438,987 B）。同时保留 devgianlu 构建文件快照与许可状态说明、Gopeed 构建报告；建议发布前自行重建并记录 SBOM。 |
+| 当前规避 | `native/aria2/fetch.ps1` 固定 **1.35.0**、大小（5,872,304 B）与 SHA-256；最终 SHA-256 `88b8b5feec7e4e7392f129fed4cf61f52a88fdc5dfe1e1464ed467fb41bd1a7f`；AAR 记录 SHA-256 `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c`（15,438,987 B）。同时保留 devgianlu v1.35.0 构建文件快照与许可状态说明、Gopeed 构建报告；建议发布前自行重建并记录 SBOM。 |
 | 后续计划 | 在 Linux/NDK 环境按 devgianlu 脚本重建 aria2 并公开构建产物哈希；生成 Gopeed `go.sum`/`go version -m` 的完整第三方清单（当前已有关键版本/哈希记录，详见 `.tools/gopeed-build/BUILD_REPORT.md`）。 |
 
 ---
@@ -391,15 +392,27 @@
 
 ---
 
-## KI-30 静态依赖供应链：OpenSSL 3.0.0 较旧、libssh2 为 dev 快照
+## KI-30 静态依赖供应链：OpenSSL 1.1.1d / aria2 1.35.0 已停维护、libssh2 为 dev 快照
 
 | 项 | 内容 |
 | --- | --- |
-| 现象 | 随 APK 分发的 aria2 预编译二进制静态链接 **OpenSSL 3.0.0（2021-09 发布，Apache-2.0）**、zlib 1.2.11、c-ares 1.18.1、libexpat 2.4.1、**libssh2 1.9.0_DEV（开发快照）** 与 libc++（NDK r23b）。 |
-| 原因 | 二进制来自 devgianlu/aria2-android v1.37.0 的固定 submodule pin；复现构建需按对应 commit 检出，升级会改变二进制哈希。**旧文档曾误写为 OpenSSL 1.1.1 / SSLeay 双许可证，现已根据 submodule pin、`VERSION.dat` 与二进制 OpenSSL 3 API 证据修正。** |
-| 影响 | OpenSSL 3.0.0 之后的 3.0.x 修复了多个 CVE（如 CVE-2022-0778、CVE-2022-3786/3602 等）；libssh2 dev 快照非正式发行版，稳定性/安全修复不如正式版可追溯。 |
-| 当前规避 | `licenses/DEPENDENCY-VERSIONS.md` 记录精确版本、submodule commit 与证据；`licenses/` 与 APK `assets/licenses/` 提供 OpenSSL 3.0.0 Apache-2.0 全文、OpenSSL 版权声明与各依赖许可证；整包按 GPLv3 分发（GPLv3 与 Apache-2.0 兼容）。 |
-| 后续计划 | 正式发布前用更新版本 OpenSSL（以及正式版 libssh2）重新构建 aria2，记录新哈希/SBOM；若继续使用现二进制，应在 Release 说明披露供应链时点与已知风险。 |
+| 现象 | 随 APK 分发的 aria2 **1.35.0** 预编译二进制静态链接 **OpenSSL 1.1.1d（2019-09，OpenSSL License + SSLeay License 双许可证）**、zlib 1.2.9、c-ares 1.14.0、libexpat 2.2.9、**libssh2 1.9.0_DEV（开发快照）** 与 libc++（clang 8.0.7 / 2019 NDK 工具链）。 |
+| 原因 | v1.1.1 为兼容 Android 16 从 aria2 1.37.0/OpenSSL 3.0.0 回退到 devgianlu v1.35.0（OpenSSL 1.1.1d）；该版本与 OpenSSL/SSLeay 双许可证使 aria2 的 `LICENSE.OpenSSL` 链接例外重新适用。复现构建需按固定 submodule pin 检出。 |
+| 影响 | OpenSSL 1.1.1d 与 aria2 1.35.0 均为 2019 年版本，**已停止维护并存在多个已知 CVE**；libssh2 dev 快照非正式发行版；升级会改变二进制哈希，需重新验证。 |
+| 当前规避 | `licenses/DEPENDENCY-VERSIONS.md` 记录精确版本、submodule commit 与证据；`licenses/` 与 APK `assets/licenses/`（17 个文件）提供 OpenSSL 1.1.1d 双许可证、aria2 例外、各依赖许可证与 Apache-2.0 全文；整包按 GPLv3 分发。 |
+| 后续计划 | 正式分发前用受支持的 OpenSSL（1.1.1w / 3.x）与新版 aria2 按 devgianlu 构建脚本自行复现，重新验证 Android 16 启动/下载并记录新哈希/SBOM；若继续使用现二进制，应在 Release 说明披露供应链时点与已知风险。 |
+
+---
+
+## KI-31 v1.1.0 的 aria2 1.37.0 在 Android 16 启动失败（已修复）
+
+| 项 | 内容 |
+| --- | --- |
+| 现象 | v1.1.0 使用 devgianlu aria2 **1.37.0**（静态链接 OpenSSL **3.0.0**），在 Redmi Turbo 4 Pro（Android 16 / SDK 36）上 aria2 子进程启动即失败：`Exception: [Platform.cc:125] errorCode=1 OSSL_PROVIDER_load 'legacy' failed.`，进程退出（code 7），JSON-RPC 超时，下载无法开始。 |
+| 原因 | 该预编译二进制缺少 OpenSSL 3 的 `legacy` provider 模块；Android 16 上 provider 加载失败。v1.1.0 未在 Android 16 真机上验证到该组合。 |
+| 影响 | v1.1.0 的 aria2 引擎在 Android 16 不可用；内置/Gopeed 引擎不受影响。 |
+| 当前状态 | **已修复（v1.1.1）**：改用 aria2 1.35.0（OpenSSL 1.1.1d），真机已验证子进程、JSON-RPC、下载与锁屏 10 分钟；同时修复 JSON-RPC `token:<secret>` 鉴权、移除导致提前退出的 `--stop-with-process`。 |
+| 后续计划 | v1.1.0 的历史 Release 保留，并在 Release 说明补注"Android 16 上 aria2 内核启动失败，已被 v1.1.1 取代"；后续升级 aria2/OpenSSL 必须做 Android 16 回归。 |
 
 ---
 
@@ -427,7 +440,7 @@
 提交 issue 时请附上：
 
 1. 设备型号、系统版本、ROM 版本；
-2. 应用版本（1.1.0 / versionCode 2）与构建类型（是否包含 Gopeed AAR / aria2 二进制）；
+2. 应用版本（1.1.1 / versionCode 3）与构建类型（是否包含 Gopeed AAR / aria2 二进制）；
 3. 复现步骤（可对照 [TEST_CHECKLIST.md](TEST_CHECKLIST.md) 编号，双内核问题优先用 E 系列）；
 4. `adb logcat -s DownloadService:V Aria2Engine:W GopeedEngine:W AndroidRuntime:E` 的相关片段；
 5. 任务详情页截图（含引擎、engineTaskId、引擎原始状态、保存位置、错误信息）。

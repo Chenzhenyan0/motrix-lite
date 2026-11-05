@@ -2,10 +2,10 @@
 
 本文描述 Motrix Lite Android 应用的模块划分、运行时模型、下载内核、状态机、持久化与前台服务设计。所有描述均对应仓库中的真实源码，路径相对工程根目录。
 
-- 应用：Motrix Lite **1.1.0**（`com.motrixlite.downloader`，versionCode 2）
+- 应用：Motrix Lite **1.1.1**（`com.motrixlite.downloader`，versionCode 3）
 - 形态：单 Activity + Compose UI + 单进程前台服务
 - 下载内核：**三引擎** —— 内置自研 OkHttp 分段、Gopeed（gomobile AAR，同进程）、aria2（子进程 + JSON-RPC）
-- 许可证：整体 GPLv3（含 GPL-3.0 的 Gopeed 与 GPL-2.0-or-later 的 aria2；aria2 二进制静态链接 OpenSSL 3.0.0 / Apache-2.0），见 [COMPLIANCE.md](COMPLIANCE.md)
+- 许可证：整体 GPLv3（含 GPL-3.0 的 Gopeed 与 GPL-2.0-or-later 的 aria2；aria2 1.35.0 二进制静态链接 OpenSSL 1.1.1d，适用 aria2 的 OpenSSL 链接例外），见 [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
@@ -203,7 +203,7 @@ Coordinator.publishResult()
 
 - 文件名优先级：`Content-Disposition` 的 `filename*`（RFC 5987）→ `filename=` → URL 路径末段 → `download-<时间戳>`（`FileNameUtils.fromContentDisposition` / `fromUrl`）。
 - `finalUrl` 取自重定向后的最终请求 URL，后续所有分段请求都打到最终 URL，避免每次都走重定向。
-- User-Agent 固定为 `MotrixLite/1.0 (Android; okhttp)`（`HttpProbe.kt` 中的实际值；1.1.0 未更新该常量，原生引擎使用 `MotrixLite/1.1 (Android; native engine)`），不带浏览器 UA 伪装。
+- User-Agent 固定为 `MotrixLite/1.1 (Android; okhttp)`（`HttpProbe.kt` 中的实际值；原生引擎使用 `MotrixLite/1.1 (Android; native engine)`），不带浏览器 UA 伪装。
 - 若 `200` 但响应头声称 `Accept-Ranges: bytes`，仍按**不支持 Range** 处理——以实际响应为准更安全（`HttpProbe.kt`）。
 
 ### 4.3 分段规划（`engine/SegmentPlanner.kt`）
@@ -440,7 +440,7 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 ---
 
-## 九、原生下载内核（v1.1.0 新增）
+## 九、原生下载内核（v1.1.0 新增，v1.1.1 修复 Android 16 aria2）
 
 ### 9.1 可用性探测（`engine/native/EngineAvailability.kt`）
 
@@ -455,7 +455,7 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 - **关注对象**：`repository.tasks` 中 `engine == ARIA2` 的任务；每 700 ms tick 一次。
 - **进程生命周期**：只有存在需要运行的 aria2 任务时才启动；没有未完成任务或全部暂停时 `shutdownProcess()`；进程异常退出时清空内存 gid 与任务 `engineTaskId`，下一轮重建。
-- **启动**：随机空闲端口（`ServerSocket(0)`）+ 随机 `--rpc-secret`；参数见 [ENGINE_INTEGRATION_PLAN.md](ENGINE_INTEGRATION_PLAN.md) 第 5.2 节；`--stop-with-process=<pid>` 兜底避免孤儿进程。
+- **启动**：aria2 **1.35.0**（静态链接 OpenSSL 1.1.1d），随机空闲端口（`ServerSocket(0)`）+ 随机 `--rpc-secret`；参数见 [ENGINE_INTEGRATION_PLAN.md](ENGINE_INTEGRATION_PLAN.md) 第 5.2 节；**不使用 `--stop-with-process`**（Android 16 上会导致 aria2 提前以 code 7 退出），由前台服务停止时 `shutdown` + `waitFor` 回收。JSON-RPC 鉴权参数为 `token:<secret>`（只传 secret 会被 HTTP 400 拒绝）。
 - **gid 映射**：内存 `ConcurrentHashMap<taskId, gid>` + 持久化 `engineTaskId`；进程停止时一并清空。
 - **任务创建**：`aria2.addUri`，options 指定每任务目录、文件名、`continue=true`、连接数、UA 等。
 - **轮询**：`tellStatus` 更新进度/总长/速度，并映射状态；`engineStatus` 保存原始状态。
@@ -529,7 +529,7 @@ Android 10（API 29）起，`targetSdk >= 29` 的应用不能从应用私有数�
 | 决策 | 选择 | 理由 | 代价 |
 | --- | --- | --- | --- |
 | 语言/UI | Kotlin + Compose | 原生 API（FGS、MediaStore、SAF、通知）零桥接；内置引擎部分保持轻量 | Compose 与 AGP/Kotlin 版本强耦合 |
-| 下载内核 | 内置 OkHttp + 可选 Gopeed/aria2 | 内置引擎保持轻量可控；双原生内核提供更多协议与生态能力 | 含 GPL 组件后整体必须 GPLv3；APK 显著增大（v1.1.0 最终 debug 64.36 MB / release 36.77 MB）；Gopeed 同进程崩溃风险 |
+| 下载内核 | 内置 OkHttp + 可选 Gopeed/aria2 | 内置引擎保持轻量可控；双原生内核提供更多协议与生态能力 | 含 GPL 组件后整体必须 GPLv3；APK 因原生内核增大（v1.1.1 最终 debug 28.00 MB / release 17.90 MB，SHA-256 见 README §6.5）；Gopeed 同进程崩溃风险 |
 | 下载落盘 | 应用专属 staging + 随机写/引擎目录 | 支持 seek、可断点续传、不暴露半成品 | 发布阶段 2 倍峰值空间 |
 | 发布方式 | MediaStore（10+）/ SAF / 私有目录（8/9） | 零存储权限，符合分区存储；三引擎统一 | 8/9 上文件不对所有文件管理器可见 |
 | 持久化 | 单 JSON + 原子替换 | 简单、可读、易调试 | 任务数很多时整表重写有开销 |
