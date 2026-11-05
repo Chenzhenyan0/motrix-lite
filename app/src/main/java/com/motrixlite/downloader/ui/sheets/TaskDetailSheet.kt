@@ -147,6 +147,13 @@ fun TaskDetailSheet(
             Card {
                 Column(Modifier.padding(14.dp)) {
                     InfoRow("状态", stateLabel(task.state))
+                    InfoRow("下载引擎", task.engine.displayName)
+                    if (task.engineTaskId != null) {
+                        InfoRow("引擎任务 ID", task.engineTaskId)
+                    }
+                    if (!task.engineStatus.isNullOrBlank()) {
+                        InfoRow("引擎原始状态", task.engineStatus)
+                    }
                     if (task.speedBytesPerSec > 0 && task.state.isRunning) {
                         InfoRow("当前速度", Formatters.speed(task.speedBytesPerSec))
                     }

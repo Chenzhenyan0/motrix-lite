@@ -200,6 +200,17 @@ fun NewTaskSheet(
             )
             Spacer(Modifier.height(12.dp))
             Text(
+                "下载引擎：${settings.downloadEngine.displayName}" +
+                    when (settings.downloadEngine) {
+                        com.motrixlite.downloader.data.model.DownloadEngine.BUILTIN -> "（支持全局限速）"
+                        com.motrixlite.downloader.data.model.DownloadEngine.GOPEED -> "（GPL-3.0；REST API 暂不支持全局限速）"
+                        com.motrixlite.downloader.data.model.DownloadEngine.ARIA2 -> "（GPL-2.0+；子进程 JSON-RPC）"
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
                 "保存到：" + if (settings.saveMode == SaveMode.MEDIASTORE) {
                     "Download/MotrixLite（系统下载目录）"
                 } else {

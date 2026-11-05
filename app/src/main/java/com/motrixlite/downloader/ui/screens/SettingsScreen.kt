@@ -11,9 +11,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -24,18 +28,24 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.motrixlite.downloader.BuildConfig
 import com.motrixlite.downloader.data.model.AppSettings
+import com.motrixlite.downloader.data.model.DownloadEngine
 import com.motrixlite.downloader.data.model.SaveMode
 import com.motrixlite.downloader.data.model.ThemeMode
 import com.motrixlite.downloader.engine.Formatters
+import com.motrixlite.downloader.engine.native.EngineAvailability
 import com.motrixlite.downloader.network.NetworkMonitor
 import com.motrixlite.downloader.ui.MainViewModel
 import com.motrixlite.downloader.ui.components.InfoRow
@@ -52,6 +62,8 @@ fun SettingsContent(
     network: NetworkMonitor.Status,
 ) {
     val context = LocalContext.current
+    val engineAvailability by vm.engineAvailability.collectAsStateWithLifecycle()
+    var showLicenseDialog by remember { mutableStateOf(false) }
     val folderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri: Uri? ->
@@ -70,6 +82,46 @@ fun SettingsContent(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        item {
+            SectionCard("下载引擎（仅影响新建任务）") {
+                RadioOptionRow(
+                    title = "内置引擎（OkHttp）",
+                    subtitle = "稳定、体积小；支持全局限速、断点续传、多连接",
+                    selected = settings.downloadEngine == DownloadEngine.BUILTIN,
+                    onClick = { vm.setDownloadEngine(DownloadEngine.BUILTIN) },
+                )
+                RadioOptionRow(
+                    title = "Gopeed（GPL-3.0）" + if (engineAvailability.gopeed) "" else " · 当前 APK 不可用",
+                    subtitle = if (engineAvailability.gopeed) {
+                        "Go 内核（AAR ${engineAvailability.gopeedClass ?: ""}），多协议能力；当前 REST API 不支持全局限速"
+                    } else {
+                        "未打包 libgopeed.aar，需按 native/gopeed 脚本构建后重新打包"
+                    },
+                    selected = settings.downloadEngine == DownloadEngine.GOPEED,
+                    enabled = engineAvailability.gopeed,
+                    onClick = { vm.setDownloadEngine(DownloadEngine.GOPEED) },
+                )
+                RadioOptionRow(
+                    title = "aria2（GPL-2.0+）" + if (engineAvailability.aria2) "" else " · 当前 APK 不可用",
+                    subtitle = if (engineAvailability.aria2) {
+                        "子进程 + JSON-RPC；支持全局限速、多连接、断点续传"
+                    } else {
+                        "未打包 libaria2c.so，需按 native/aria2 脚本获取后重新打包"
+                    },
+                    selected = settings.downloadEngine == DownloadEngine.ARIA2,
+                    enabled = engineAvailability.aria2,
+                    onClick = { vm.setDownloadEngine(DownloadEngine.ARIA2) },
+                )
+                Text(
+                    "切换只影响之后新建的任务；已有任务保持创建时的引擎，不受影响。两个原生内核会显著增大 APK 体积。" +
+                        "Gopeed/aria2 为 GPL 组件，本应用整体按 GPLv3 开源（详见「关于 → 开源许可」）。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+
         item {
             SectionCard("下载设置") {
                 SliderSetting(
@@ -238,7 +290,9 @@ fun SettingsContent(
         item {
             SectionCard("关于") {
                 InfoRow("版本", BuildConfig.VERSION_NAME)
-                InfoRow("下载内核", "自研 OkHttp 分段下载（未集成 aria2）")
+                InfoRow("内置引擎", "自研 OkHttp 分段下载")
+                InfoRow("Gopeed", if (engineAvailability.gopeed) "已打包（AAR）" else "未打包")
+                InfoRow("aria2", if (engineAvailability.aria2) "已打包（arm64）" else "未打包")
                 InfoRow("支持协议", "HTTP / HTTPS（磁力、BT 暂不支持）")
                 InfoRow("应用性质", "参考 Motrix 产品思路的独立 Android 实现")
                 Spacer(Modifier.height(8.dp))
@@ -249,24 +303,71 @@ fun SettingsContent(
                 ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(
-                            "开源合规说明",
+                            "开源许可 / 源码获取（GPLv3）",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "• 本应用是独立的 Android 工程，不包含 Motrix（Electron 桌面应用）代码，也不分发 aria2 可执行文件。\n" +
-                                "• Motrix 项目采用 MIT 许可证，本应用仅参考其交互与功能思路。\n" +
-                                "• aria2 采用 GPLv2 许可证；本应用选择自研下载内核，因此不触发 GPLv2 的分发义务。若后续集成 aria2，需要随包提供完整源码与许可证说明。\n" +
-                                "• 本应用使用 Kotlin、Jetpack Compose、OkHttp（Apache-2.0）等开源组件。",
+                            "本应用包含 Gopeed（GPL-3.0）与 aria2（GPL-2.0-or-later）组件，因此整体按 GNU GPLv3 分发；" +
+                                "完整源码、构建脚本与许可证文本见公开仓库与 Release 源码归档。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        Spacer(Modifier.height(6.dp))
+                        TextButton(onClick = { showLicenseDialog = true }) {
+                            Text("查看完整许可说明")
+                        }
                     }
                 }
             }
         }
     }
+
+    if (showLicenseDialog) {
+        LicenseDialog(
+            onDismiss = { showLicenseDialog = false },
+            onOpenSource = { vm.openSourceCode() },
+        )
+    }
+}
+
+@Composable
+private fun LicenseDialog(
+    onDismiss: () -> Unit,
+    onOpenSource: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("开源许可与源码获取") },
+        text = {
+            Column(
+                Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    "本应用（Motrix Lite）整体按 GNU General Public License v3.0 发布。\n\n" +
+                        "包含的 GPL 组件：\n" +
+                        "• Gopeed v1.9.3 — GPL-3.0，源码：https://github.com/GopeedLab/gopeed\n" +
+                        "• aria2 1.37.0（arm64 预编译二进制）— GPL-2.0-or-later（含 OpenSSL 例外），源码：https://github.com/aria2/aria2\n\n" +
+                        "对应源码与构建脚本：\n" +
+                        "https://github.com/Chenzhenyan0/motrix-lite\n" +
+                        "（仓库 native/ 目录包含 AAR 构建脚本与 aria2 获取/校验脚本；Release 页面附源码归档与许可证文件。）\n\n" +
+                        "许可证全文（GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 例外）已打包在 APK 的 assets/licenses/ 中，" +
+                        "并随 Release 源码归档提供。若需要物理介质源码，请通过仓库 Issue 联系，我们提供至少三年有效的书面要约。\n\n" +
+                        "本应用为独立实现，非 Motrix 官方产品，也未使用 Motrix 源代码。",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onOpenSource) { Text("打开源码仓库") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        },
+    )
 }
 
 @Composable
@@ -307,18 +408,23 @@ private fun RadioOptionRow(
     subtitle: String?,
     selected: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, onClick = onClick)
+        RadioButton(selected = selected, onClick = onClick, enabled = enabled)
         Spacer(Modifier.width(4.dp))
         Column {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,

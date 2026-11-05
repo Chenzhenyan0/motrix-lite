@@ -9,11 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.motrixlite.downloader.App
 import com.motrixlite.downloader.data.RepoEvent
 import com.motrixlite.downloader.data.model.AppSettings
+import com.motrixlite.downloader.data.model.DownloadEngine
 import com.motrixlite.downloader.data.model.DownloadTask
 import com.motrixlite.downloader.data.model.SaveMode
 import com.motrixlite.downloader.data.model.TaskState
 import com.motrixlite.downloader.data.model.ThemeMode
 import com.motrixlite.downloader.engine.HttpProbe
+import com.motrixlite.downloader.engine.native.EngineAvailability
 import com.motrixlite.downloader.util.FileOpener
 import com.motrixlite.downloader.util.HyperOSGuide
 import com.motrixlite.downloader.util.NotificationPermission
@@ -52,6 +54,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _batteryOptimized = MutableStateFlow(!HyperOSGuide.isIgnoringBatteryOptimizations(context))
     val batteryOptimized: StateFlow<Boolean> = _batteryOptimized.asStateFlow()
 
+    private val _engineAvailability = MutableStateFlow(EngineAvailability.snapshot(context))
+    val engineAvailability: StateFlow<EngineAvailability.Snapshot> = _engineAvailability.asStateFlow()
+
     init {
         viewModelScope.launch {
             container.repository.events.collect { event ->
@@ -85,6 +90,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshSystemState() {
         _notificationGranted.value = NotificationPermission.isGranted(context)
         _batteryOptimized.value = !HyperOSGuide.isIgnoringBatteryOptimizations(context)
+        _engineAvailability.value = EngineAvailability.snapshot(context)
     }
 
     fun onNotificationPermissionResult(granted: Boolean) {
@@ -106,11 +112,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             emit("当前版本仅支持 HTTP/HTTPS 直链下载；磁力链接与 BT 种子暂不支持")
             return
         }
+        val engine = container.settingsRepository.settings.value.downloadEngine
+        if (!isEngineAvailable(engine)) {
+            emit("${engine.displayName} 内核未安装到当前 APK，请在设置中切换回可用引擎，或重新构建包含该内核的版本")
+            return
+        }
         repositoryCreate(trimmed, customFileName)
         container.serviceController.ensureRunning()
         if (!NotificationPermission.isGranted(context)) {
             emit("已开始下载。通知权限未开启：锁屏后进度通知不可见，建议在设置中开启通知权限")
         }
+    }
+
+    private fun isEngineAvailable(engine: DownloadEngine): Boolean = when (engine) {
+        DownloadEngine.BUILTIN -> true
+        DownloadEngine.ARIA2 -> EngineAvailability.isAria2Available(context)
+        DownloadEngine.GOPEED -> EngineAvailability.isGopeedAvailable()
     }
 
     private fun repositoryCreate(url: String, customFileName: String?) {
@@ -187,6 +204,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setSaveMode(mode: SaveMode) = container.settingsRepository.setSaveMode(mode)
 
+    fun setDownloadEngine(engine: DownloadEngine) {
+        if (!isEngineAvailable(engine)) {
+            emit("${engine.displayName} 内核未打包进当前 APK，无法选择")
+            return
+        }
+        container.settingsRepository.setDownloadEngine(engine)
+        emit("新建任务将使用 ${engine.displayName}；已有任务保持原引擎")
+    }
+
     fun setSafFolder(uri: Uri) {
         try {
             context.contentResolver.takePersistableUriPermission(
@@ -224,6 +250,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openWifiSettings() {
         HyperOSGuide.openWifiSettings(context)
+    }
+
+    fun openSourceCode() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Chenzhenyan0/motrix-lite"))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { context.startActivity(intent) }
+            .onFailure { emit("无法打开浏览器，请手动访问 GitHub 仓库查看源码与许可证") }
     }
 
     private fun emit(text: String) {
