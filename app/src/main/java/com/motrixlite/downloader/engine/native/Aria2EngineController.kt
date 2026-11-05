@@ -194,6 +194,7 @@ class Aria2EngineController(
         try {
             val gid = client.addUri(url, options)
             gids[taskId] = gid
+            log("addUri($taskId) -> gid=$gid")
             repository.updateEngineInfo(taskId, gid, "added")
             repository.setState(taskId, TaskState.CONNECTING, null)
         } catch (e: Exception) {
@@ -324,7 +325,6 @@ class Aria2EngineController(
                 "--file-allocation=none",
                 "--max-concurrent-downloads=${settings.maxConcurrentTasks}",
                 "--max-overall-download-limit=${limitBytes(settings)}",
-                "--stop-with-process=${android.os.Process.myPid()}",
                 "--console-log-level=warn",
                 "--log-level=warn",
                 "--log=${logFile.absolutePath}",
@@ -358,12 +358,13 @@ class Aria2EngineController(
             lastLimitBytes = Long.MIN_VALUE
             lastMaxConcurrent = -1
             lastFailureAt = 0L
-            log("aria2c started on port $port")
+            log("aria2c started on port $port log=$logFile")
             true
         } catch (e: Exception) {
             lastFailureAt = System.currentTimeMillis()
             process = null
             rpc = null
+            log("aria2c start failed: ${e.message}")
             failActiveTasks("aria2 内核启动失败：${e.message}")
             false
         }

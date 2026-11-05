@@ -76,7 +76,7 @@ class Aria2RpcClient(
 
     private suspend fun call(method: String, vararg params: Any?): Any? = withContext(Dispatchers.IO) {
         val paramsArray = JSONArray().apply {
-            put(secret)
+            put("token:$secret")
             params.forEach { put(it) }
         }
         val payload = JSONObject().apply {
@@ -90,8 +90,8 @@ class Aria2RpcClient(
             .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
         httpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("aria2 RPC HTTP ${response.code}")
             val body = response.body?.string() ?: throw IOException("aria2 RPC 空响应")
+            if (!response.isSuccessful) throw IOException("aria2 RPC HTTP ${response.code}: ${body.take(300)}")
             val json = JSONObject(body)
             if (json.has("error")) {
                 val error = json.optJSONObject("error")
