@@ -1,14 +1,14 @@
 # 测试与验收清单（TEST CHECKLIST）
 
-本清单用于在**真实 Android 设备**上验收 Motrix Lite **1.1.0（三引擎：内置 / Gopeed / aria2）**。当前仓库的自动化测试覆盖 JVM 单元测试（**32 个用例，9 个测试类**，见 [BUILD_AND_SIGN.md](BUILD_AND_SIGN.md)）与 `:app:assembleDebug` / `:app:assembleRelease` 构建（最终 APK 已含两个原生内核），**不包含真机功能验收**。请按本清单逐项执行，并在"结果记录"栏填写结论、设备信息与证据位置。
+本清单用于在**真实 Android 设备**上验收 Motrix Lite **1.1.1（三引擎：内置 / Gopeed / aria2）**。当前仓库的自动化测试覆盖 JVM 单元测试（**32 个用例，9 个测试类**，见 [BUILD_AND_SIGN.md](BUILD_AND_SIGN.md)）与 `:app:assembleDebug` / `:app:assembleRelease` 构建（最终 APK 已含两个原生内核），并已在 Redmi Turbo 4 Pro / Android 16 上完成**部分真机抽查**（见 3.6）；**完整 A1–A7/B1–B8/E1–E8 尚未逐项执行**。请按本清单逐项执行，并在"结果记录"栏填写结论、设备信息与证据位置。
 
-> ⚠️ 事实声明：本项目在开发环境中**没有 Android 设备或模拟器**，因此下列真机用例**全部处于"待验证"状态**。文档中不声称已在任何具体机型（包括红米 Turbo 4 Pro）上通过验收。
+> ⚠️ 事实声明：下列真机用例中，仅 3.6 记录的抽查项有实际执行结果；**其余项仍为"待验证"**。文档中不声称已在任何机型上通过完整验收。
 
 ---
 
 ## 一、使用说明
 
-1. **执行顺序**：先做 A1（安装启动），再做 A2–A7；B 系列为补充与边界用例；**E 系列为 1.1.0 双内核专项**，建议在 A+B 通过后执行。
+1. **执行顺序**：先做 A1（安装启动），再做 A2–A7；B 系列为补充与边界用例；**E 系列为双内核专项**（v1.1.0 引入，v1.1.1 修复 Android 16 aria2），建议在 A+B 通过后执行。
 2. **结果记录**：每项只能填 `通过` / `失败` / `阻塞` / `未执行`。失败时必须填写缺陷编号（见缺陷记录表）。
 3. **证据**：截图、录屏、`adb logcat` 片段、文件列表输出。建议每个失败项至少保留一张截图 + 一段日志。
 4. **一轮完整验收建议预留 4–6 小时**（含 30 分钟后台挂机、1 次重启、两引擎各 10 分钟锁屏）。
@@ -25,7 +25,7 @@
 | **A6** | 5 任务并发/暂停/恢复/删除 + 重启状态 | 队列、持久化、重启恢复 |
 | **A7** | 限速 / 并发 / 仅 Wi-Fi 策略 | 全局令牌桶、并发上限、网络策略（内置引擎） |
 
-### 双内核（1.1.0）验收映射
+### 双内核（1.1.1）验收映射
 
 | 编号 | 验收项 | 对应能力 | 备注 |
 | --- | --- | --- | --- |
@@ -42,14 +42,14 @@
 
 | 原始验收标准 | 对应用例 | 说明 |
 | --- | --- | --- |
-| 1. 在红米 Turbo 4 Pro 上安装启动不闪退 | A1、E1、E7 | 本环境未在真机执行 |
+| 1. 在红米 Turbo 4 Pro 上安装启动不闪退 | A1、E1、E7 | 本次抽查中应用可安装/运行，但 A1 完整步骤未逐项执行 |
 | 2. HTTP/HTTPS 断点续传；锁屏或切后台 10 分钟后仍能继续下载 | A2、A3（内置）；**E2（Gopeed）、E3（aria2）** | 三个引擎分别验证 |
 | 3. 通知权限被拒绝时有降级提示 | A4 | 应用内横幅 + Snackbar + 设置页状态 |
 | 4. 下载文件可在系统文件管理器中找到 | A5、E2、E3 | 三个引擎统一经 `DestinationPublisher` 发布 |
 | 5. 连续添加 5 个任务，执行暂停/恢复/删除，重启 App 后状态正确 | A6 | 另覆盖 force-stop 与设备重启 |
 | 6. 不因 HyperOS 后台限制导致频繁失败，并提供设置引导 | **B2**（配合 A3 复测） | 自启动/省电策略无公开 API，应用只能引导 |
 | 7. 不承诺"直接封装 Motrix 桌面版"，技术限制和风险提前说明 | 非测试项 | 见 README「重要声明」、[COMPLIANCE.md](COMPLIANCE.md) |
-| 8.（1.1.0 新增）双内核可用、可切换、可回收，许可证合规 | **E1–E8** | 见上表；全部待验证 |
+| 8.（1.1.0 引入）双内核可用、可切换、可回收，许可证合规 | **E1–E8** | 见上表；完整执行待验证（部分项已抽查，见 3.6） |
 
 ---
 
@@ -60,7 +60,7 @@
 | 设备型号 | （必填，例如：红米 Turbo 4 Pro） |
 | 系统版本 / ROM | （例：HyperOS 2.x / Android 15） |
 | Android API Level | |
-| 应用版本 | 1.1.0（versionCode 2） |
+| 应用版本 | 1.1.1（versionCode 3） |
 | ABI | arm64-v8a（本版本仅支持该 ABI） |
 | 构建类型 | debug / release |
 | 原生产物状态 | 已放入 Gopeed AAR：是/否；已放入 aria2 二进制：是/否 |
@@ -150,16 +150,36 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 
 > 测试完成后请删除 `tools/testfile.bin`（50 MB～2 GB），避免误提交；该文件未被 `.gitignore` 覆盖。
 
-### 3.5 本次构建基线（v1.1.0 最终构建，可直接用于测试）
+### 3.5 本次构建基线（v1.1.1 最终构建，可直接用于测试）
 
 | 项 | 值 |
 | --- | --- |
-| Debug APK | `dist/MotrixLite-debug.apk`，67,482,342 B（64.36 MB），SHA-256 `b78789b787ff9a9465a45657b3a807de31460db10385581d3f410f3fbcff5689` |
-| Release APK | `dist/MotrixLite-release.apk`，38,559,243 B（36.77 MB），SHA-256 `5272ca1e679786a05a7f4c3abf8f013a05f3a445996084341c33f86244155d5f` |
-| 原生内核 | aria2 1.37.0：`lib/arm64-v8a/libaria2c.so`（69,107,592 B，SHA-256 `dbfd705d437b6fe58a897b83bfafa07cd90972a369269bc2392a29e30fc7389a`）；Gopeed v1.9.3：`lib/arm64-v8a/libgojni.so`（43,908,776 B，来自 AAR 15,438,987 B，SHA-256 `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c`） |
-| 许可证资产 | APK `assets/licenses/` 含 GPL-3.0、GPL-2.0、aria2 COPYING、历史 aria2 LICENSE.OpenSSL/说明、**OpenSSL 3.0.0 Apache-2.0 全文+版权声明**、Gopeed LICENSE、zlib/c-ares/libexpat/libssh2 许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES |
+| Debug APK | `dist/MotrixLite-debug.apk`，**29,358,263 B（28.00 MB）**，SHA-256 `583b6846ff23fe2a68fb24b74038955ce1ea1b1bf313fbaed1c1ce8abf611bc4` |
+| Release APK | `dist/MotrixLite-release.apk`，**18,771,902 B（17.90 MB）**，SHA-256 `a8b5be56898a8bc40f67e5158263c988f9c602067daa6fbcfb04fd911cbd2d5d` |
+| 原生内核 | aria2 **1.35.0**：`lib/arm64-v8a/libaria2c.so`（5,872,304 B，SHA-256 `88b8b5feec7e4e7392f129fed4cf61f52a88fdc5dfe1e1464ed467fb41bd1a7f`）；Gopeed v1.9.3：`lib/arm64-v8a/libgojni.so`（43,908,776 B，来自 AAR 15,438,987 B，SHA-256 `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c`） |
+| 许可证资产 | APK `assets/licenses/` 含 **17 个文件**：GPL-3.0、GPL-2.0、aria2 COPYING、aria2 LICENSE.OpenSSL/例外说明、**OpenSSL-1.1.1d-LICENSE（OpenSSL+SSLeay 双许可证）**、Gopeed LICENSE、Apache-2.0、zlib/c-ares/libexpat/libssh2 许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES、README、devgianlu notice |
 
-> 以上为 v1.1.0 **最终 rebuild** 的实测基线（已含补齐的 OpenSSL 3.0.0 / Apache-2.0 等许可证 assets），与 `dist/SHA256SUMS.txt` 一致。测试前可用 `Get-FileHash dist\MotrixLite-release.apk -Algorithm SHA256` 复核 APK 未被替换；E7 需要的"不含原生产物"变体需自行构建（见 E7 说明）。
+> 以上为 v1.1.1 **最终 rebuild** 的实测基线，与 `dist/SHA256SUMS.txt` 一致；`zipalign -P 16` 通过。测试前可用 `Get-FileHash dist\MotrixLite-release.apk -Algorithm SHA256` 复核 APK 未被替换；E7 需要的"不含原生产物"变体需自行构建（见 E7 说明）。
+
+### 3.6 v1.1.1 真机抽查记录（2026-11-05，非完整验收）
+
+**设备**：Redmi 25053RT47C（Redmi Turbo 4 Pro），Android 16 / SDK 36，HyperOS OS3.0.306.0.WOLCNXM，arm64，4KB page，已 root。**范围仅为下列抽查，不代表 A1–A7/B1–B8/E1–E8 全部通过。**
+
+| 抽查项 | 结果 | 证据/备注 |
+| --- | --- | --- |
+| 内置引擎 50MB HTTP 下载、完成、发布 | ✅ | `/sdcard/Download/MotrixLite/testfile.bin` |
+| 内置引擎暂停/继续 | ✅ | — |
+| 前台服务 dataSync + 通知 + 空闲停止 | ✅ | — |
+| Gopeed `libgojni.so` 加载/REST 启动/50MB 下载/发布/停服 | ✅ | `GopeedEngine: Gopeed server started on port …` |
+| aria2 子进程/JSON-RPC 鉴权/50MB 下载/发布 | ✅ | 发布为 `testfile (N).bin`；使用 `token:<secret>` 鉴权 |
+| aria2 暂停/恢复、完成后进程消失 | ✅ | — |
+| 引擎切换 | ✅ | 新任务用所选引擎并显示 badge；旧任务保留原引擎 |
+| aria2 锁屏 10 分钟 | ✅ | 23:14:56 锁屏 → 23:26 检查：日志 448 KB→20 MiB/50 MiB，`PARTIAL_WAKE_LOCK 'MotrixLite:Download'` 持续，进程存活；`am force-stop` 后无残留 |
+| v1.1.0 Android 16 aria2 失败复现 | ✅（历史） | `OSSL_PROVIDER_load 'legacy' failed`；v1.1.1 修复 |
+| Gopeed 锁屏 10 分钟专项 | ❌ 未执行 | 设备已锁屏，无法继续 UI 操作 |
+| 通知权限拒绝降级 | ❌ 未执行 | — |
+| 5 任务并发压力 | ❌ 未执行 | — |
+| 完整 A1–A7/B1–B8/E1–E8 | ❌ 未执行 | 需按本清单逐项执行并回填 |
 
 ---
 
@@ -169,9 +189,9 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 
 | 项 | 内容 |
 | --- | --- |
-| **前置条件** | 设备已开启"USB 调试"或允许"安装未知来源应用"；使用 `dist/MotrixLite-debug.apk` 或 `dist/MotrixLite-release.apk`（v1.1.0 已构建；release 为演示签名，正式发布需换证书）；设备 ABI 为 arm64-v8a；设备剩余空间建议 ≥ 300 MB |
+| **前置条件** | 设备已开启"USB 调试"或允许"安装未知来源应用"；使用 `dist/MotrixLite-debug.apk` 或 `dist/MotrixLite-release.apk`（v1.1.1 已构建；release 为演示签名，正式发布需换证书）；设备 ABI 为 arm64-v8a；设备剩余空间建议 ≥ 300 MB |
 | **操作步骤** | 1. `adb install -r dist\MotrixLite-release.apk`（或 debug 包，或点击 APK 安装）<br>2. 桌面找到「Motrix Lite」图标，冷启动<br>3. 观察首屏 10 秒<br>4. 切换到「设置」页再切回「任务」页<br>5. 旋转屏幕（若未锁定）<br>6. `adb shell dumpsys package com.motrixlite.downloader \| findstr versionName`<br>7. 打开「设置 → 关于」，记录 Gopeed / aria2 的打包状态与版本信息 |
-| **预期结果** | 1. 安装成功，无 `INSTALL_FAILED_*` 报错<br>2. 启动进入任务列表，无闪退、无白屏<br>3. 空列表展示「还没有下载任务」与"暂不支持磁力/BT"提示<br>4. 页面切换正常，无状态丢失<br>5. 旋转后布局正常（或按系统设置不旋转）<br>6. 输出 `versionName=1.1.0`（versionCode=2）<br>7. 「关于」中 Gopeed / aria2 均显示"已打包"（本次最终 APK 已放入两个原生产物）<br>8. `adb logcat -s AndroidRuntime:E` 无 FATAL EXCEPTION |
+| **预期结果** | 1. 安装成功，无 `INSTALL_FAILED_*` 报错<br>2. 启动进入任务列表，无闪退、无白屏<br>3. 空列表展示「还没有下载任务」与"暂不支持磁力/BT"提示<br>4. 页面切换正常，无状态丢失<br>5. 旋转后布局正常（或按系统设置不旋转）<br>6. 输出 `versionName=1.1.1`（versionCode=3）<br>7. 「关于」中 Gopeed / aria2 均显示"已打包"（本次最终 APK 已放入两个原生产物）<br>8. `adb logcat -s AndroidRuntime:E` 无 FATAL EXCEPTION |
 | **结果记录** | ☐ 通过　☐ 失败　☐ 阻塞　☐ 未执行<br>设备/系统：____________　证据：____________　备注：____________ |
 
 ---
@@ -343,7 +363,7 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 
 ---
 
-## 六、E 系列：双内核专项（1.1.0 新增，全部待验证）
+## 六、E 系列：双内核专项（v1.1.0 引入；v1.1.1 修复 Android 16 aria2，完整项待验证）
 
 > 前置：完成 A1；设备为 arm64-v8a；测试 APK **已放入** `app/libs/libgopeed.aar` 与 `app/src/main/jniLibs/arm64-v8a/libaria2c.so`（E7 例外，用未放入产物的 APK）。
 > 测试源建议使用 `tools/range_test_server.py`（支持 Range/ETag/限速），E2/E3 需要至少 10 分钟不结束的下载（如 `--size-mb 500 --throttle-kbps 500`）。
@@ -381,6 +401,8 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 | **预期结果** | 1. aria2 子进程按需启动，任务详情出现 gid/原始状态<br>2. 暂停/恢复生效；锁屏 10 分钟期间下载持续或可恢复<br>3. 文件发布到 `Download/MotrixLite`，大小/哈希正确<br>4. 全部任务暂停/完成后 `aria2c` 子进程回收（无残留进程）<br>5. 无 App 崩溃；`adb logcat -s Aria2Engine:W` 无持续报错 |
 | **结果记录** | ☐ 通过　☐ 失败　☐ 阻塞　☐ 未执行<br>锁屏 10 分钟后进度：______%　gid：______<br>暂停后续传：☐ 正常 ☐ 从 0 开始　进程回收：☐ 是 ☐ 否　证据：____________ |
 
+> v1.1.1 真机抽查已部分覆盖本项：aria2 50MB 下载、暂停/恢复、锁屏 10 分钟（日志 448 KB→20 MiB/50 MiB、WakeLock 持续）、force-stop 后无残留均通过；但文件哈希校验、进程被杀后的 `.aria2` 续传重建等完整步骤仍需按本表补测。
+
 ---
 
 ### E4 切换引擎后新建任务（旧任务不变）
@@ -411,8 +433,10 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 | --- | --- |
 | **前置条件** | 两个原生内核均已打包；至少一个 aria2 任务与一个 Gopeed 任务处于下载中或暂停中。 |
 | **操作步骤** | 1. 两个引擎各创建一个任务并开始下载<br>2. `adb shell am force-stop com.motrixlite.downloader` 杀进程<br>3. 立即检查 `adb shell ps -A \| findstr aria2c` 是否还有孤儿进程<br>4. 等待 10 秒后再次检查<br>5. 重新打开 App，检查任务状态；用 `adb logcat -s Aria2Engine:W GopeedEngine:W` 观察恢复过程<br>6. 再次进入任务列表，暂停全部任务，观察内核是否停止<br>7. 设备重启后再核对一遍（可选） |
-| **预期结果** | 1. force-stop 后无孤儿 `aria2c`（`--stop-with-process` 与 shutdown 双重保障）<br>2. Gopeed 端口/线程随进程销毁，无残留监听端口（可用 `adb shell cat /proc/net/tcp` 抽查，或重启后无异常）<br>3. 重启 App 后任务按引擎恢复：原生任务 `engineTaskId` 已清空并按 URL 重建；进度按 `.aria2`/Gopeed 机制续传<br>4. 暂停全部后两个内核都停止，服务 4 秒后空闲退出<br>5. 无崩溃、无重复任务、无状态错乱 |
+| **预期结果** | 1. force-stop 后无孤儿 `aria2c`（v1.1.1 由 `shutdown` + `waitFor` 回收；不使用 `--stop-with-process`）<br>2. Gopeed 端口/线程随进程销毁，无残留监听端口（可用 `adb shell cat /proc/net/tcp` 抽查，或重启后无异常）<br>3. 重启 App 后任务按引擎恢复：原生任务 `engineTaskId` 已清空并按 URL 重建；进度按 `.aria2`/Gopeed 机制续传<br>4. 暂停全部后两个内核都停止，服务 4 秒后空闲退出<br>5. 无崩溃、无重复任务、无状态错乱 |
 | **结果记录** | ☐ 通过　☐ 失败　☐ 阻塞　☐ 未执行<br>孤儿 aria2c：☐ 无 ☐ 有　重启后恢复：☐ 正常 ☐ 异常<br>证据：____________ |
+
+> v1.1.1 真机抽查已确认：aria2 完成后进程消失、`am force-stop` 后无残留 aria2 进程；Gopeed 端口/线程回收与"重启后按引擎恢复"的完整步骤仍需按本表补测。
 
 ---
 
@@ -432,8 +456,8 @@ curl.exe -sI http://127.0.0.1:8000/testfile.bin
 | 项 | 内容 |
 | --- | --- |
 | **前置条件** | 含两个原生产物的 APK；任意设备（无需下载完成）。 |
-| **操作步骤** | 1. 打开「设置 → 关于」，检查版本、引擎打包状态、开源许可入口<br>2. 点开「开源许可 / 源码获取」，逐项核对：GPLv3 声明、Gopeed（GPL-3.0）与 aria2（GPL-2.0-or-later；静态链接 OpenSSL 3.0.0 / Apache-2.0）、源码 URL、书面要约说明<br>3. 点击「打开源码仓库」确认可跳转<br>4. 用 `adb shell unzip -l`（或解压 APK）检查 `assets/licenses/` 是否包含 GPLv3、GPLv2、aria2 COPYING、历史 aria2 LICENSE.OpenSSL/说明、OpenSSL 3.0.0 Apache-2.0 全文+版权、Gopeed LICENSE、各静态依赖许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES<br>5. 比对 APK 内文本与仓库 `licenses/`、`native/licenses/` 是否一致 |
-| **预期结果** | 1. 关于页显示 1.1.0 与引擎状态<br>2. 许可对话框包含全部 GPL 组件、版本、源码地址与书面要约；明确"整体 GPLv3、不可闭源分发"<br>3. 源码仓库链接可打开（或给出可操作提示）<br>4. APK assets 内许可证文本齐全、可读、与仓库一致<br>5. 若发现缺失，按缺陷记录（GPL 合规问题优先级最高） |
+| **操作步骤** | 1. 打开「设置 → 关于」，检查版本、引擎打包状态、开源许可入口<br>2. 点开「开源许可 / 源码获取」，逐项核对：GPLv3 声明、Gopeed（GPL-3.0）与 aria2（GPL-2.0-or-later；静态链接 OpenSSL 1.1.1d，适用 aria2 OpenSSL 例外）、源码 URL、书面要约说明<br>3. 点击「打开源码仓库」确认可跳转<br>4. 用 `adb shell unzip -l`（或解压 APK）检查 `assets/licenses/` 是否包含 GPLv3、GPLv2、aria2 COPYING、aria2 LICENSE.OpenSSL/例外说明、OpenSSL-1.1.1d-LICENSE、Gopeed LICENSE、Apache-2.0、各静态依赖许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES（共 17 个）<br>5. 比对 APK 内文本与仓库 `licenses/`、`native/licenses/` 是否一致 |
+| **预期结果** | 1. 关于页显示 1.1.1 与引擎状态<br>2. 许可对话框包含全部 GPL 组件、版本、源码地址与书面要约；明确"整体 GPLv3、不可闭源分发"<br>3. 源码仓库链接可打开（或给出可操作提示）<br>4. APK assets 内许可证文本齐全、可读、与仓库一致<br>5. 若发现缺失，按缺陷记录（GPL 合规问题优先级最高） |
 | **结果记录** | ☐ 通过　☐ 失败　☐ 阻塞　☐ 未执行<br>缺失文件：______　链接是否可用：☐ 是 ☐ 否　证据：____________ |
 
 ---
@@ -541,9 +565,9 @@ adb pull /data/app/com.motrixlite.downloader-*/base.apk base.apk   # 如需要
 一次验收被视为**通过**，需同时满足：
 
 1. A1–A7 全部为「通过」；
-2. **E1–E8 全部为「通过」**（双内核与许可证合规属于 1.1.0 的交付范围；E7 若因构建方式无法复现，需明确标记「阻塞」并说明）；
+2. **E1–E8 全部为「通过」**（双内核与许可证合规属于 1.1.1 的交付范围；E7 若因构建方式无法复现，需明确标记「阻塞」并说明）；
 3. 无「致命」或「严重」级别未关闭缺陷；
 4. B 系列中 B4、B5、B6、B8 为「通过」；B1、B2、B7 若因设备/时间条件无法执行，需明确标记「阻塞」并说明原因，不得默认视为通过；
 5. 真机验证记录已回填到本文件与 `README.md` 的"验证状态"章节。
 
-> 再次强调：在回填真实结果之前，任何"已通过真机验收"的说法都不成立。E 系列尤其重要——两个原生内核目前只有构建级与静态验证。
+> 再次强调：在完整回填之前，任何"已通过全部真机验收"的说法都不成立。v1.1.1 已有部分真机抽查（见 3.6），但 E1–E8/A1–A7/B1–B8 的完整执行仍未完成。
