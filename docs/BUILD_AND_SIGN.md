@@ -1,6 +1,8 @@
 # 构建与签名指南（BUILD AND SIGN）
 
-本文说明如何在本地构建 Motrix Lite、如何运行单元测试、如何生成签名密钥并验证 APK。命令同时给出 Windows（PowerShell / `gradlew.bat`）与 macOS/Linux 两种写法。
+本文说明如何在本地构建 Motrix Lite 1.1.0（三引擎）、如何生成/放入两个原生内核产物、如何运行单元测试、如何生成签名密钥并验证 APK。命令同时给出 Windows（PowerShell / `gradlew.bat`）与 macOS/Linux 两种写法。
+
+> 1.1.0 同时包含 GPL 组件（Gopeed GPL-3.0、aria2 GPL-2.0-or-later；aria2 二进制静态链接 **OpenSSL 3.0.0 / Apache-2.0**，历史 LICENSE.OpenSSL 例外不覆盖该版本），**整体按 GPLv3 分发**（GPLv3 与 Apache-2.0 兼容）。构建与发布前请阅读 [COMPLIANCE.md](COMPLIANCE.md)。
 
 ---
 
@@ -14,10 +16,14 @@
 | Kotlin | **2.0.21**（含 `org.jetbrains.kotlin.plugin.compose`） | 同上 |
 | compileSdk / targetSdk | **35** | `app/build.gradle.kts` |
 | minSdk | **26**（Android 8.0） | 同上 |
-| versionCode / versionName | **1 / 1.0.0** | 同上 |
+| versionCode / versionName | **2 / 1.1.0** | 同上 |
+| ABI | **仅 arm64-v8a**（`abiFilters`） | 同上 |
 | Compose BOM | 2024.12.01（Material3） | `app/build.gradle.kts` |
 | OkHttp | 4.12.0 | 同上 |
 | coroutines | 1.9.0 | 同上 |
+| Go（Gopeed AAR 安装主版本） | **1.24.11** | `native/gopeed/build.ps1` |
+| gomobile 实际编译工具链 | **go1.26.10**（`GOTOOLCHAIN=auto` 自动下载；`golang.org/x/mobile v0.0.0-20261011034528-197770444867` 要求 Go ≥ 1.26） | `.tools/gopeed-build/BUILD_REPORT.md` |
+| Android NDK（仅构建 Gopeed AAR） | **27.2.12479018（r27c）** | 同上 |
 
 > **JDK 必须是 17。** 用 JDK 21/24 构建时 AGP 8.7 通常仍可运行，但可能报 `Unsupported class file major version`；用 JDK 11 会因 AGP 要求而失败。
 
@@ -105,13 +111,17 @@ sdkmanager --licenses     # 逐项输入 y 接受
 在工程根目录（`motrix-lite/`）执行：
 
 ```powershell
+# （可选，1.1.0）先放入两个原生内核产物；不放也能编译，只是设置页显示不可用
+powershell -ExecutionPolicy Bypass -File native/gopeed/build.ps1
+powershell -ExecutionPolicy Bypass -File native/aria2/fetch.ps1
+
 # Debug
 .\gradlew.bat :app:assembleDebug
 
 # Release（R8 压缩 + 签名）
 .\gradlew.bat :app:assembleRelease
 
-# 单元测试
+# 单元测试（32 个用例，9 个测试类）
 .\gradlew.bat :app:testDebugUnitTest
 
 # Release Lint（构建 release 时会自动跑 lintVitalRelease）
@@ -131,37 +141,35 @@ macOS / Linux：
 ./gradlew clean
 ```
 
-### 3.4 产物位置
+> `native/gopeed/build.ps1` 与 `native/aria2/fetch.ps1` 为 Windows PowerShell 脚本；Gopeed AAR 的 gomobile 构建需要 Linux/macOS/Windows + Go + NDK（脚本已固定版本）。aria2 脚本只做下载/校验/复制。
 
-| 构建类型 | 路径 | 本机实测大小 |
-| --- | --- | --- |
-| Debug | `app/build/outputs/apk/debug/app-debug.apk` | 10,730,630 字节（约 10.23 MB） |
-| Release | `app/build/outputs/apk/release/app-release.apk` | 1,477,909 字节（约 1.41 MB） |
+### 3.4 产物位置与体积（v1.1.0 最终构建）
 
-`dist/` 目录中是构建完成后复制出的分发副本：
+v1.1.0 已在本机完成 `:app:assembleDebug` 与 `:app:assembleRelease`（release 经 R8 + 演示签名），两个原生产物（`libgopeed.aar`、`libaria2c.so`）均已放入并打包进 APK：
 
-```
-dist/MotrixLite-debug.apk
-dist/MotrixLite-release.apk
-dist/SHA256SUMS.txt
-```
+| 构建类型 | 路径 | 大小 | SHA-256（实际计算） |
+| --- | --- | --- | --- |
+| Debug | `app/build/outputs/apk/debug/app-debug.apk` | 67,482,342 B（64.36 MB） | `b78789b787ff9a9465a45657b3a807de31460db10385581d3f410f3fbcff5689` |
+| Release | `app/build/outputs/apk/release/app-release.apk` | 38,559,243 B（36.77 MB） | `5272ca1e679786a05a7f4c3abf8f013a05f3a445996084341c33f86244155d5f` |
+| 分发副本 | `dist/MotrixLite-debug.apk` | 67,482,342 B | 同 Debug 产物 |
+| 分发副本 | `dist/MotrixLite-release.apk` | 38,559,243 B | 同 Release 产物 |
 
-当前 `SHA256SUMS.txt` 内容（已在本机重新计算核对一致）：
-
-```
-349612085d362b5130b537e012cf6e14334d0bbcbb3a1c249b4b7133adcd2819  MotrixLite-debug.apk  (10.23 MB)
-cd5872c1f5e7f203aa304017105ed2e8d2bc48fcc6da195ad41334b3e40196e1  MotrixLite-release.apk  (1.41 MB)
-```
-
-校验命令：
+`dist/SHA256SUMS.txt` 已按上述实际文件生成，可用以下命令复核：
 
 ```powershell
 Get-FileHash dist\MotrixLite-release.apk -Algorithm SHA256
+Get-FileHash dist\MotrixLite-debug.apk -Algorithm SHA256
 ```
 
 ```bash
-shasum -a 256 dist/MotrixLite-release.apk
+shasum -a 256 dist/MotrixLite-release.apk dist/MotrixLite-debug.apk
 ```
+
+> **APK 内容已核验**：两个 APK 都包含 `lib/arm64-v8a/libaria2c.so`（69,107,592 B）、`lib/arm64-v8a/libgojni.so`（43,908,776 B）以及 `assets/licenses/`（GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 3.0.0 Apache-2.0 全文+版权、各静态依赖许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES）。release 小于 debug 是因为 R8 压缩/资源裁剪且不含 `ui-tooling` 等调试依赖。
+>
+> **最终 rebuild 已完成**：补齐 OpenSSL 3.0.0 / Apache-2.0 等许可证 assets 后重新构建，上表大小与 SHA-256 均为 `dist/` 实测值（与 `dist/SHA256SUMS.txt` 一致；两个 APK 均已解包核验包含 16 个 license 文件、`libaria2c.so` 与 `libgojni.so`）。
+>
+> 1.0.0 历史数据（仅供参考）：Debug 10,730,630 B；Release 1,477,909 B。
 
 ---
 
@@ -215,6 +223,19 @@ maven { url = uri("https://maven.aliyun.com/repository/public") }
 & "C:\Gradle\gradle-8.9\bin\gradle.bat" :app:assembleDebug
 ```
 
+### 4.4 原生内核工具链的网络处理
+
+| 资源 | 下载地址/镜像 | 说明 |
+| --- | --- | --- |
+| Go 1.24.11 | `https://dl.google.com/go/go1.24.11.windows-amd64.zip` | `native/gopeed/build.ps1` 固定版本（也可用其它可达镜像手动放入 `downloads/`） |
+| Android NDK 27.2.12479018 | `https://dl.google.com/android/repository/android-ndk-r27c-windows.zip`（或 sdkmanager） | 脚本优先用 `sdkmanager`，否则下载 r27c 压缩包 |
+| Go modules | `GOPROXY=https://goproxy.cn,https://mirrors.aliyun.com/goproxy,direct` | 脚本已设置；`proxy.golang.org` 在部分网络不可达 |
+| aria2 二进制 | `https://gh-proxy.com/https://github.com/devgianlu/aria2-android/releases/download/v1.37.0/aria2c-arm64-v8a` | 可用 `-Mirror` 更换代理；下载后校验大小 69,107,592 字节与 SHA-256 |
+
+> Gopeed AAR 构建需约 0.9 GB 工具链下载；aria2 只需下载 69 MB 二进制。两者均可跳过——不放入产物时 APK 仍可编译运行。
+>
+> **v1.1.0 的 Gopeed 构建实际情况**：安装的 Go 主版本为 1.24.11，但 `golang.org/x/mobile@latest` 要求 Go ≥ 1.26，`GOTOOLCHAIN=auto` 自动下载并使用 **go1.26.10** 完成编译；NDK 为 27.2.12479018（r27c，clang 18.0.3）；AAR 产物 15,438,987 B，SHA-256 `aa064e347705067a19f61222f85f199e0a8527f57fcd80f6e082bdb899dd2d7c`。完整过程见 `.tools/gopeed-build/BUILD_REPORT.md`（不提交仓库）。新版 `gomobile init` 不再接受 `-ndk` 参数，NDK 位置由 `ANDROID_NDK_HOME` 指定。
+
 ---
 
 ## 五、R8 与 ProGuard
@@ -233,6 +254,13 @@ release {
 
 ```proguard
 -keep class com.motrixlite.downloader.data.model.** { *; }
+# Gopeed gomobile AAR 通过反射加载（实际类 com.gopeed.libgopeed.Libgopeed）
+-keep class com.gopeed.** { *; }
+-keep class libgopeed.** { *; }
+-keep class go.** { *; }
+-keepclasseswithmembernames class * { native <methods>; }
+-dontwarn com.gopeed.**
+-dontwarn go.**
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn org.conscrypt.**
@@ -244,8 +272,10 @@ release {
 说明：
 
 - 任务 JSON 由 `org.json` 手工读写（**无反射**），因此 `-keep` model 类只是保守做法，去掉也能工作；
+- **Gopeed AAR 通过反射调用，实际 Java 入口类为 `com.gopeed.libgopeed.Libgopeed`**（`GopeedBridge` 的候选列表包含它）；AAR 自带 `proguard.txt`（`-keep class go.**`、`-keep class com.gopeed.**`）会由 AGP 自动应用，本工程又在 `proguard-rules.pro` 中显式保留 `com.gopeed.**` / `libgopeed.**` / `go.**` 与 native 方法，避免 release 包运行期 `ClassNotFoundException` / `UnsatisfiedLinkError`；
+- AAR 只导出 `start`/`stop`，没有事件/InvokeAsync 桥，因此 Controller 通过 REST 轮询完成全部任务控制；
 - `-dontwarn` 覆盖 OkHttp 在 Android 上可选但未打包的 TLS 提供者（Conscrypt/BouncyCastle/OpenJSSE）；
-- Release 包 1.41 MB，明显小于 debug 的 10.23 MB。注意两者不完全可比：debug 包额外包含 `ui-tooling`、`ui-test-manifest` 等仅调试依赖，且不经过 R8 裁剪。
+- v1.1.0 最终包：debug 67,482,342 B（64.36 MB）/ release 38,559,243 B（36.77 MB）；release 因 R8 明显小于 debug。debug 额外包含 `ui-tooling`、`ui-test-manifest` 等调试依赖，且不经过 R8 裁剪，两者不完全可比。
 
 **常见 R8 报错与处理**：
 
@@ -253,7 +283,8 @@ release {
 | --- | --- |
 | `Missing class okhttp3.internal.platform...` | 已有 `-dontwarn okhttp3.**`；若新增库再补 `-dontwarn` |
 | `Missing class org.bouncycastle.**` | 同上，属可选依赖 |
-| 运行期 `ClassNotFoundException` / `NoSuchMethodException` | 说明被裁剪，按类名加 `-keep class <包>.** { *; }` |
+| 运行期 `ClassNotFoundException: com.gopeed...` | 确认 `-keep class com.gopeed.**`；检查 AAR 是否真的打包进 APK |
+| 运行期 `NoSuchMethodException`（反射 start/stop） | 确认 AAR 版本/包名候选与 `GopeedBridge` 一致；不要混淆 gomobile 生成的类 |
 | 反射读取枚举/JSON 字段失败 | 本工程不使用反射序列化；如未来引入 Gson/Moshi，需保留对应 model 与泛型签名 |
 | `R8: java.lang.OutOfMemoryError` | 提高 `gradle.properties` 的 `org.gradle.jvmargs`（当前 4096m） |
 
@@ -354,9 +385,11 @@ Signer #1 certificate DN: CN=...
 ```powershell
 adb devices
 adb install -r app\build\outputs\apk\debug\app-debug.apk
-# 或
-adb install -r dist\MotrixLite-release.apk
+# 或（先自行构建 v1.1.0 release；dist/ 目前是 1.0.0 旧产物）
+adb install -r app\build\outputs\apk\release\app-release.apk
 ```
+
+> 1.1.0 仅支持 **arm64-v8a** 设备；x86 模拟器/wear 等无法安装。
 
 覆盖安装签名不一致时会报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，先卸载：
 
@@ -364,10 +397,10 @@ adb install -r dist\MotrixLite-release.apk
 adb uninstall com.motrixlite.downloader
 ```
 
-查看日志：
+查看日志（含两个原生引擎）：
 
 ```powershell
-adb logcat -s DownloadService:V AndroidRuntime:E
+adb logcat -s DownloadService:V Aria2Engine:W GopeedEngine:W AndroidRuntime:E
 ```
 
 ---
@@ -393,12 +426,18 @@ app/build/test-results/testDebugUnitTest/*.xml
 | `FileNameUtilsTest` | 6 | 通过 |
 | `SegmentPlannerTest` | 4 | 通过 |
 | `RateLimiterTest` | 3 | 通过 |
-| `TaskJsonCodecTest` | 2 | 通过 |
+| `TaskJsonCodecTest` | 3 | 通过（新增 engine / 旧 v1 兼容用例） |
 | `HttpProbeTest` | 4 | 通过（MockWebServer） |
 | `TaskDownloaderTest` | 3 | 通过（MockWebServer） |
-| **合计** | **25** | **全部通过** |
+| `Aria2RpcClientTest` | 3 | 通过（MockWebServer；1.1.0 新增） |
+| `GopeedApiTest` | 3 | 通过（MockWebServer；1.1.0 新增） |
+| **合计** | **32** | **全部通过（9 个测试类）** |
 
-`TaskDownloaderTest` 覆盖：多段下载字节完全一致、暂停后续传字节一致、服务器忽略 Range 时降级单连接。详见 [docs/TEST_CHECKLIST.md](TEST_CHECKLIST.md)。
+`TaskDownloaderTest` 覆盖：多段下载字节完全一致、暂停后续传字节一致、服务器忽略 Range 时降级单连接。`TaskJsonCodecTest` 覆盖 schema v2 字段往返、运行期字段丢弃、旧 v1 默认 `BUILTIN`、空/畸形数据。`Aria2RpcClientTest` 覆盖 `addUri` 的 secret/URL/options、`tellStatus` 解析与错误映射、`changeGlobalOption` 仅 OK 生效；`GopeedApiTest` 覆盖 `createTask` 的 token/请求体、任务列表与 pause PUT、非零 envelope 抛错。
+
+> 注意：两个原生引擎的 **RPC/REST 客户端协议层**已有 MockWebServer 单测覆盖；但 `Aria2EngineController` / `GopeedEngineController` 的进程、AAR、文件发布与回收逻辑仍无 JVM 单测（依赖 Android Context / 子进程 / AAR），只能依赖真机 E 系列验证。不能把 32/32 理解为"双内核已完成真机验证"。
+
+详见 [docs/TEST_CHECKLIST.md](TEST_CHECKLIST.md)。
 
 ---
 
@@ -411,7 +450,11 @@ app/build/test-results/testDebugUnitTest/*.xml
 | `Could not install Gradle distribution` / 下载超时 | 网络 | 换镜像或离线放置发行版（4.1） |
 | `Unsupported class file major version 68` | 使用了 JDK 24 等更高版本 | 切换 Gradle JDK 到 17 |
 | `Android Gradle plugin requires Java 17` | Gradle JDK 为 11 | 切换为 17 |
-| `Cannot locate symbol` / NDK 相关报错 | 本工程无 native 代码 | 无需安装 NDK，检查是否误加了依赖 |
+| 设置页显示 Gopeed/aria2 不可用 | 未放入 `libgopeed.aar` / `libaria2c.so`，或 AAR 未打包 | 运行 `native/gopeed/build.ps1`、`native/aria2/fetch.ps1` 后重新构建；检查 `app/build.gradle.kts` 是否检测到 AAR |
+| 运行期 `ClassNotFoundException: com.gopeed...` | R8 裁剪了 AAR 类 | 确认 `proguard-rules.pro` 的 `-keep class com.gopeed.**`；检查 release 是否真的打进 AAR |
+| `aria2 内核未打包进当前 APK` 或 `exec` 失败 | 二进制未放入 `jniLibs/arm64-v8a/`，或 `useLegacyPackaging` 被改回 false | 重新获取二进制并确认 Gradle 配置；只支持 arm64-v8a 设备 |
+| `aria2c RPC 启动超时` | 端口/参数/ABI 不匹配，或二进制被裁剪 | 查看 `staging/engines/aria2/aria2.log`；确认设备 ABI 与二进制一致 |
+| Gopeed 构建失败（gomobile） | Go/NDK/GOPROXY 网络问题；新版 gomobile 不再支持 `init -ndk` | 按 `native/gopeed/build.ps1` 的版本与镜像重试；NDK 用 `ANDROID_NDK_HOME` 指定；`golang.org/x/mobile@latest` 需 Go ≥ 1.26（`GOTOOLCHAIN=auto` 下载 go1.26.10） |
 | `SigningConfig "release" not found` | `keystore.properties` 缺失但代码强引用 | 本工程已做存在性判断；若自行改动需同步修改 |
 | `lintVitalRelease` 失败 | 新增代码触发致命 lint | 按报告修复，或（不推荐）在 `android.lint` 中关闭对应规则 |
 | 构建内存不足 / `OutOfMemoryError` | 默认 4 GB 堆偏小（大工程） | 调大 `org.gradle.jvmargs` |
@@ -421,13 +464,16 @@ app/build/test-results/testDebugUnitTest/*.xml
 
 ## 九、版本发布检查清单
 
-- [ ] `versionCode` 递增、`versionName` 更新（`app/build.gradle.kts`）
+- [ ] `versionCode` 递增、`versionName` 更新（当前 2 / 1.1.0）
+- [ ] 放入原生产物并记录版本/哈希：`app/libs/libgopeed.aar`（Gopeed v1.9.3，15,438,987 B）、`app/src/main/jniLibs/arm64-v8a/libaria2c.so`（aria2 1.37.0，69,107,592 B）
 - [ ] `keystore.properties` 指向正式密钥库，且**未**提交到仓库
 - [ ] `.\gradlew.bat clean :app:testDebugUnitTest :app:assembleRelease` 全绿
 - [ ] `apksigner verify --print-certs` 显示正式证书
-- [ ] 复制 APK 到 `dist/` 并更新 `SHA256SUMS.txt`
-- [ ] 更新 `README.md` 中的验证状态与 `docs/KNOWN_ISSUES.md`
-- [ ] 附上 `LICENSE` 与 `THIRD_PARTY_NOTICES.md`
+- [ ] 复制 APK 到 `dist/` 并更新 `SHA256SUMS.txt`（v1.1.0 已生成：debug 67,482,342 B / release 38,559,243 B）
+- [ ] APK `assets/licenses/` 含 GPLv3、GPLv2、aria2 COPYING、Gopeed LICENSE、OpenSSL 3.0.0 Apache-2.0 全文+版权、历史 LICENSE.OpenSSL/说明、静态依赖许可证、DEPENDENCY-VERSIONS、SOURCE-OFFER、THIRD_PARTY_NOTICES
+- [ ] Release 附源码归档（Gopeed/aria2 对应源码或获取方式、构建脚本）与书面要约
+- [ ] 更新 `README.md` 验证状态、`docs/KNOWN_ISSUES.md`、`docs/TEST_CHECKLIST.md` 结果
+- [ ] 附上 `LICENSE`（GPLv3）与 `THIRD_PARTY_NOTICES.md`
 
 ---
 
@@ -435,10 +481,11 @@ app/build/test-results/testDebugUnitTest/*.xml
 
 | 项 | 结果 | 说明 |
 | --- | --- | --- |
-| Windows Debug 构建 | ✅ 成功 | `app-debug.apk`，10,730,630 字节 |
-| Windows Release 构建 | ✅ 成功 | `app-release.apk`，1,477,909 字节，使用演示自签名证书 |
-| 单元测试 | ✅ 25/25 通过 | 7 个测试类，含 MockWebServer 实测 |
-| `lintVitalRelease` | ✅ 通过 | 无致命问题 |
+| Windows Debug 构建（v1.1.0，含两原生内核） | ✅ 成功 | `app-debug.apk` 67,482,342 B（64.36 MB），已含 `libaria2c.so` / `libgojni.so` |
+| Windows Release 构建（v1.1.0，R8 + 演示签名） | ✅ 成功 | `app-release.apk` 38,559,243 B（36.77 MB） |
+| 单元测试 | ✅ 32/32 通过 | 9 个测试类，含 MockWebServer 实测；原生引擎**控制器**仍无 JVM 单测 |
+| APK SHA-256 | ✅ 已计算 | debug `b78789b7…ff5689`；release `5272ca1e…155d5f`（完整值见 3.4） |
 | 真机安装/运行 | ❌ **未验证** | 本环境无 Android 设备或模拟器 |
+| 双内核真机验证（E1–E8） | ❌ **未执行** | 见 [docs/TEST_CHECKLIST.md](TEST_CHECKLIST.md) |
 
-> 本环境的构建验证只覆盖"能编译、能过测试、能签名"，**不包含真机功能验收**。功能验收请按 [docs/TEST_CHECKLIST.md](TEST_CHECKLIST.md) 在真机上执行并填写结果。
+> 本环境的构建验证覆盖"能编译、能过 32 个 JVM 测试、能签名、APK 内原生产物与许可证齐全"，**不包含真机功能验收，也不包含两个原生内核的实际运行验证**。功能验收请按 [docs/TEST_CHECKLIST.md](TEST_CHECKLIST.md) 在真机上执行并填写结果。

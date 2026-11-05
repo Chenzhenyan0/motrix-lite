@@ -1,10 +1,11 @@
 # 架构说明（ARCHITECTURE）
 
-本文描述 Motrix Lite Android 应用的模块划分、运行时模型、下载内核算法、状态机、持久化与前台服务设计。所有描述均对应仓库中的真实源码，路径相对工程根目录。
+本文描述 Motrix Lite Android 应用的模块划分、运行时模型、下载内核、状态机、持久化与前台服务设计。所有描述均对应仓库中的真实源码，路径相对工程根目录。
 
-- 应用：Motrix Lite（`com.motrixlite.downloader`）
+- 应用：Motrix Lite **1.1.0**（`com.motrixlite.downloader`，versionCode 2）
 - 形态：单 Activity + Compose UI + 单进程前台服务
-- 下载内核：自研 OkHttp 分段下载（**不含 aria2**）
+- 下载内核：**三引擎** —— 内置自研 OkHttp 分段、Gopeed（gomobile AAR，同进程）、aria2（子进程 + JSON-RPC）
+- 许可证：整体 GPLv3（含 GPL-3.0 的 Gopeed 与 GPL-2.0-or-later 的 aria2；aria2 二进制静态链接 OpenSSL 3.0.0 / Apache-2.0），见 [COMPLIANCE.md](COMPLIANCE.md)
 
 ---
 
@@ -21,28 +22,29 @@
 ┌───────────────────────────────┐   ┌──────────────────────────────┐
 │ DownloadRepository（内存 SoT）│   │ DownloadService（dataSync）   │
 │ StateFlow<List<DownloadTask>> │◄──┤  - 常驻通知 / WakeLock        │
-│ JSON 持久化（700ms 防抖）      │   │  - 生命周期与时限处理          │
-└───────┬───────────────▲───────┘   └──────────────┬───────────────┘
-        │               │                          │
-        │ tasks.json    │ 状态/进度回写              ▼
-        ▼               │              ┌──────────────────────────┐
-┌──────────────┐        └──────────────┤ DownloadCoordinator       │
-│  TaskStore   │                       │ 队列 / 并发 / Wi-Fi / 重试 │
-└──────────────┘                       └───────┬──────────────────┘
-                                               │
-                     ┌─────────────────────────┼─────────────────────────┐
-                     ▼                         ▼                         ▼
-            ┌─────────────────┐      ┌──────────────────┐      ┌──────────────────┐
-            │  HttpProbe      │      │  TaskDownloader   │      │ DestinationPublisher │
-            │  元数据探测      │      │  分段下载 + 重试   │      │ MediaStore / SAF     │
-            └─────────────────┘      └────────┬─────────┘      └──────────────────┘
-                                              │
-                                    ┌─────────┴─────────┐
-                                    ▼                   ▼
-                            ┌──────────────┐   ┌──────────────┐
-                            │  RateLimiter │   │  SegmentPlanner │
-                            │  全局令牌桶   │   │  分段规划        │
-                            └──────────────┘   └──────────────┘
+│ JSON v2 持久化（700ms 防抖）   │   │  - 生命周期与时限处理          │
+└───────┬───────────────▲───────┘   │  - 持有 3 个引擎执行器         │
+        │               │           └───────┬──────────┬───────────┘
+        │ tasks.json    │ 状态/进度回写       │          │
+        ▼               │                    ▼          ▼
+┌──────────────┐        │      ┌──────────────────┐  ┌────────────────────┐
+│  TaskStore   │        └──────┤ DownloadCoordinator│  │ Aria2 / Gopeed      │
+└──────────────┘               │ 仅处理 BUILTIN     │  │ EngineController    │
+                               └───────┬───────────┘  └─────┬──────────┬───┘
+                                       │                     │          │
+                                       ▼                     ▼          ▼
+                              ┌─────────────────┐    ┌───────────┐ ┌──────────┐
+                              │ HttpProbe /      │    │ aria2c    │ │ Gopeed   │
+                              │ TaskDownloader   │    │ 子进程     │ │ Go 内核  │
+                              │ RateLimiter 等   │    │ JSON-RPC  │ │ REST     │
+                              └────────┬────────┘    └─────┬─────┘ └────┬─────┘
+                                       │                    │            │
+                                       └────────────────────┴────────────┘
+                                                            ▼
+                                              ┌──────────────────────────┐
+                                              │ DestinationPublisher      │
+                                              │ MediaStore / SAF           │
+                                              └──────────────────────────┘
 ```
 
 ### 模块职责
@@ -52,7 +54,8 @@
 | `com.motrixlite.downloader` | `App`、`AppContainer` | 进程级单例装配（手工依赖注入） |
 | `data` | `DownloadRepository`、`TaskStore`、`TaskJsonCodec`、`SettingsRepository`、`RepoEvent` | 任务状态唯一数据源、JSON 持久化、设置存储、领域事件 |
 | `data.model` | `DownloadTask`、`Segment`、`TaskState`、`AppSettings` | 数据模型与状态枚举 |
-| `engine` | `HttpProbe`、`SegmentPlanner`、`TaskDownloader`、`DownloadCoordinator`、`RateLimiter`、`SpeedMeter`、`FileNameUtils`、`Formatters` | 下载内核与调度 |
+| `engine` | `HttpProbe`、`SegmentPlanner`、`TaskDownloader`、`DownloadCoordinator`、`RateLimiter`、`SpeedMeter`、`FileNameUtils`、`Formatters` | 内置下载内核与调度 |
+| `engine.native` | `EngineAvailability`（含 `GopeedBridge`）、`Aria2EngineController`、`Aria2RpcClient`、`GopeedEngineController`、`GopeedApi` | 两个原生内核的可用性探测、生命周期、RPC/REST 客户端、进度/状态回写 |
 | `storage` | `DestinationPublisher` | staging → 用户可见位置的发布 |
 | `service` | `DownloadService`、`NotificationHelper`、`ServiceController` | 前台服务、通知、UI 侧启动封装 |
 | `network` | `NetworkMonitor` | 默认网络状态（Wi-Fi / 蜂窝 / 在线） |
@@ -67,8 +70,8 @@
 
 - **单进程**：UI 与前台服务共享同一进程、同一个 `AppContainer` 实例，因此任务状态天然一致，无需 Binder/AIDL 或数据库。
 - `AppContainer`（`AppContainer.kt`）持有：`applicationScope`（`SupervisorJob + Dispatchers.IO`）、`stagingDir`、`SettingsRepository`、`DownloadRepository`、`OkHttpClient`、`HttpProbe`、`RateLimiter`、`NetworkMonitor`、`DestinationPublisher`、`ServiceController`。
-- `App.onCreate()` 中构造容器并创建通知渠道（`App.kt:11-15`）。
-- `DownloadCoordinator` **不是**单例：它在 `DownloadService.onCreate()` 中创建，`onDestroy()` 中 `stop()`，与前台服务生命周期绑定（`service/DownloadService.kt:52-60`、`:196-207`）。
+- `App.onCreate()` 中构造容器并创建通知渠道（`App.kt`）。
+- `DownloadCoordinator`、`Aria2EngineController`、`GopeedEngineController` **都不是单例**：它们在 `DownloadService.onCreate()` 中创建，`onDestroy()` 中停止，与前台服务生命周期绑定（`service/DownloadService.kt`）。
 
 ### 2.2 为什么不用 Hilt / Room
 
@@ -81,11 +84,11 @@
 | --- | --- |
 | UI 组合与状态收集 | 主线程（`collectAsStateWithLifecycle`） |
 | 仓库持久化、文件 IO、HTTP | `Dispatchers.IO` |
-| 分段下载 | 每个分段一个 `async(Dispatchers.IO)`（`TaskDownloader.kt:288-292`） |
-| 前台服务监控循环 | `Dispatchers.Main.immediate` + `delay`（`DownloadService.kt:35`） |
-| 进度上报 | 独立 `launch` 协程，500ms 采样（`TaskDownloader.kt:280-286`） |
+| 分段下载 | 每个分段一个 `async(Dispatchers.IO)`（`TaskDownloader.kt`） |
+| 前台服务监控循环 | `Dispatchers.Main.immediate` + `delay`（`DownloadService.kt`） |
+| 进度上报 | 独立 `launch` 协程，500ms 采样（`TaskDownloader.kt`） |
 
-取消语义：协程取消即"暂停"。`TaskDownloader.run()` 捕获 `CancellationException` 并返回 `DownloadResult.Paused`，同时 `cancelActiveCalls()` 主动 `Call.cancel()` 中断阻塞读（`TaskDownloader.kt:120-121`、`:146-149`）。
+取消语义：协程取消即"暂停"。`TaskDownloader.run()` 捕获 `CancellationException` 并返回 `DownloadResult.Paused`，同时 `cancelActiveCalls()` 主动 `Call.cancel()` 中断阻塞读（`TaskDownloader.kt`）。
 
 ---
 
@@ -95,10 +98,11 @@
 
 `data/model/Models.kt`：
 
-- `DownloadTask`：任务的全部持久化字段 + 运行期字段（`speedBytesPerSec`、`speedHistory`、`publishProgress`）。
+- `DownloadTask`：任务的全部持久化字段 + 运行期字段（`speedBytesPerSec`、`speedHistory`、`publishProgress`）。1.1.0 新增持久化字段 `engine: DownloadEngine`（创建时固定）、`engineTaskId`（aria2 gid / Gopeed task id）、`engineStatus`（引擎原始状态）。
 - `Segment`：闭区间 `[start, end]`；`end = -1` 表示服务器未给总长度（单连接、不可分段）。
 - `TaskState`：9 个状态，并提供 `isRunning` / `needsService` / `isFinished` 派生属性。
-- `AppSettings`：并发、连接数、限速、仅 Wi-Fi、自动恢复、通知、保存模式、SAF URI、主题。
+- `DownloadEngine`：`BUILTIN` / `GOPEED` / `ARIA2`，`displayName` 用于 UI；`DownloadTask.isNativeEngine` 表示非内置引擎。
+- `AppSettings`：并发、连接数、限速、仅 Wi-Fi、自动恢复、通知、保存模式、SAF URI、主题，以及 `downloadEngine`（新建任务默认引擎，默认 `BUILTIN`）。
 - `SaveMode`：`MEDIASTORE` / `SAF`；`ThemeMode`：`SYSTEM` / `LIGHT` / `DARK`。
 
 ### 3.2 状态机
@@ -127,7 +131,7 @@
    仅 Wi-Fi 且当前为蜂窝 ──► WAITING_FOR_WIFI ──连回 Wi-Fi──► QUEUED
 ```
 
-关键判定（`Models.kt:23-32`）：
+关键判定（`Models.kt`）：
 
 ```kotlin
 val isRunning: Boolean
@@ -137,22 +141,26 @@ val needsService: Boolean
     get() = this == QUEUED || isRunning || this == WAITING_FOR_WIFI
 ```
 
-`needsService` 决定前台服务是否还需要存活：没有任何任务需要服务且空闲超过 4 秒后，服务自行 `stopSelf()`（`DownloadService.kt:140-151`）。
+`needsService` 决定前台服务是否还需要存活：没有任何任务需要服务且空闲超过 4 秒后，服务自行 `stopSelf()`（`DownloadService.kt`）。
+
+> 三引擎共用同一状态机：原生引擎 Controller 把 aria2/Gopeed 的原始状态映射到 `TaskState`，UI 不感知引擎内部状态；`engineStatus` 仅用于详情页诊断展示。各引擎的暂停/恢复/失败/完成语义与内置引擎保持一致。
 
 ### 3.3 `desiredRunning`：用户意图与当前状态的分离
 
 `desiredRunning` 记录"用户希望这个任务处于运行状态"，与 `state` 解耦：
 
 - 用户暂停 → `state=PAUSED`、`desiredRunning=false`；
-- App 被系统杀死后重启 → 若 `state` 是活动态且 `desiredRunning=true`，恢复为 `QUEUED`；否则保持 `PAUSED`（`DownloadRepository.kt:81-100`）。
+- App 被系统杀死后重启 → 若 `state` 是活动态且 `desiredRunning=true`，恢复为 `QUEUED`；否则保持 `PAUSED`（`DownloadRepository.kt`）。
 
 这个字段解决了"进程被杀时正在下载"与"用户主动暂停"两种情况在持久化后无法区分的问题。
 
 ---
 
-## 四、下载引擎
+## 四、下载引擎（内置引擎）
 
-### 4.1 端到端流程
+> 本节描述 `engine=BUILTIN` 的自研 OkHttp 内核；aria2/Gopeed 两个原生内核见第九节。
+
+### 4.1 端到端流程（内置引擎）
 
 ```
 createTask()                  用户点击「开始下载」
@@ -195,8 +203,8 @@ Coordinator.publishResult()
 
 - 文件名优先级：`Content-Disposition` 的 `filename*`（RFC 5987）→ `filename=` → URL 路径末段 → `download-<时间戳>`（`FileNameUtils.fromContentDisposition` / `fromUrl`）。
 - `finalUrl` 取自重定向后的最终请求 URL，后续所有分段请求都打到最终 URL，避免每次都走重定向。
-- User-Agent 固定为 `MotrixLite/1.0 (Android; okhttp)`（`HttpProbe.kt:147`），不带浏览器 UA 伪装。
-- 若 `200` 但响应头声称 `Accept-Ranges: bytes`，仍按**不支持 Range** 处理——以实际响应为准更安全（`HttpProbe.kt:106-109`）。
+- User-Agent 固定为 `MotrixLite/1.0 (Android; okhttp)`（`HttpProbe.kt` 中的实际值；1.1.0 未更新该常量，原生引擎使用 `MotrixLite/1.1 (Android; native engine)`），不带浏览器 UA 伪装。
+- 若 `200` 但响应头声称 `Accept-Ranges: bytes`，仍按**不支持 Range** 处理——以实际响应为准更安全（`HttpProbe.kt`）。
 
 ### 4.3 分段规划（`engine/SegmentPlanner.kt`）
 
@@ -236,21 +244,21 @@ fun plan(totalBytes: Long, connections: Int): List<Segment> {
    - 否则清空 staging、从 0 开始单连接写入（降级）；
 5. `416` → 若该段已完整则视为完成，否则 `FatalHttpException`（需删除任务重下）；
 6. 其余 `4xx` → `FatalHttpException`（不重试，如 401/403/404）；
-7. `5xx`/IO 异常 → 段级重试，最多 3 次，退避 `1500ms × 2^(n-1)`，上限 12s（`TaskDownloader.kt:529-530`）。
+7. `5xx`/IO 异常 → 段级重试，最多 3 次，退避 `1500ms × 2^(n-1)`，上限 12s（`TaskDownloader.kt`）。
 
-**降级路径**：若任一分段抛出 `RangeUnsupportedException`（服务器对分段返回 `200`），`downloadWithFallback()` 会清空 staging、改为单连接，整文件重下（`TaskDownloader.kt:253-276`）。
+**降级路径**：若任一分段抛出 `RangeUnsupportedException`（服务器对分段返回 `200`），`downloadWithFallback()` 会清空 staging、改为单连接，整文件重下（`TaskDownloader.kt`）。
 
-**完整性校验**（`finalizeTask()`，`TaskDownloader.kt:443-468`）：
+**完整性校验**（`finalizeTask()`，`TaskDownloader.kt`）：
 
 - 已知总长：所有段 `downloaded == length` 且求和等于 `totalBytes`，且 staging 文件长度等于 `totalBytes`；
 - 未知总长：staging 文件长度等于各段下载量之和。
 - 任一不满足 → 抛 `IOException`，走任务级重试。
 
-**进度模型**：`AtomicLongArray` 按段计数，`reportProgress()` 每 500ms 汇总一次（`TaskDownloader.kt:470-491`），避免每读一个 buffer 就回调 UI。
+**进度模型**：`AtomicLongArray` 按段计数，`reportProgress()` 每 500ms 汇总一次（`TaskDownloader.kt`），避免每读一个 buffer 就回调 UI。
 
 ### 4.5 断点续传
 
-续传的判定集中在 `prepare()`（`TaskDownloader.kt:155-231`）：
+续传的判定集中在 `prepare()`（`TaskDownloader.kt`）：
 
 | 检查 | 判定为"服务器文件已变化"的条件 |
 | --- | --- |
@@ -260,7 +268,7 @@ fun plan(totalBytes: Long, connections: Int): List<Segment> {
 | staging 文件 | 记录有进度但 staging 文件不存在 |
 | 未知长度 | staging 存在但文件长度与记录的已下载量不一致 |
 
-一旦判定变化：删除 staging、进度清零、重新规划分段（`TaskDownloader.kt:190-193`）。
+一旦判定变化：删除 staging、进度清零、重新规划分段（`TaskDownloader.kt`）。
 
 否则复用已有分段：若旧分段恰好覆盖完整文件（连续、求和等于总长）则原样沿用；若旧分段是"未知长度单段"则按新总长修正 `end`。这些安全检查保证**跨 App 重启续传不会把两代文件拼在一起**。
 
@@ -285,19 +293,21 @@ repository.markFailed(id, result.message)
 
 ## 五、调度器（`engine/DownloadCoordinator.kt`）
 
-`kick()` 是唯一的调度入口，由四路事件触发：任务列表变化、设置变化、网络状态变化、服务启动。内部用 `synchronized(kickLock)` 串行化，避免并发启动同一任务。
+1.1.0 起调度器**只处理 `engine == BUILTIN` 的任务**；aria2/Gopeed 的任务由各自 EngineController 驱动（见第九节）。
+
+`kick()` 是内置引擎的唯一调度入口，由四路事件触发：任务列表变化、设置变化、网络状态变化、服务启动。内部用 `synchronized(kickLock)` 串行化，避免并发启动同一任务。
 
 ```
 kick():
   1. 取消不再需要运行的任务（已暂停/已删除/已完成/desiredRunning=false）
-  2. 若网络允许，把 WAITING_FOR_WIFI 的任务改回 QUEUED
+  2. 若网络允许，把 WAITING_FOR_WIFI 的内置引擎任务改回 QUEUED
   3. 计算空槽位 = maxConcurrentTasks - activeJobs.size
-  4. 按列表顺序取 QUEUED 任务：
+  4. 按列表顺序取 engine=BUILTIN 且 QUEUED 的任务：
        - 若 wifiOnly 且当前非 Wi-Fi → 置为 WAITING_FOR_WIFI 并跳过
        - 否则启动 runTask()，状态置 CONNECTING
 ```
 
-- 并发上限 `1..5`，默认 3（`AppSettings.maxConcurrentTasks`，`SettingsRepository.setMaxConcurrentTasks` 做 `coerceIn(1,5)`）。
+- 并发上限 `1..5`，默认 3（`AppSettings.maxConcurrentTasks`，`SettingsRepository.setMaxConcurrentTasks` 做 `coerceIn(1,5)`）——该槽位**只约束内置引擎**；原生引擎的并发由 aria2 `--max-concurrent-downloads` 与 Gopeed `maxRunning` 各自控制，跨引擎没有统一槽位。
 - Wi-Fi 策略在**启动时**判断，不做连接级中断：正在下载的任务若网络从 Wi-Fi 切到蜂窝，当前连接可能继续（由 OkHttp 的默认网络行为决定），下次 `kick()` 重排时会转为 `WAITING_FOR_WIFI`。这是已知行为，见 [KNOWN_ISSUES.md](KNOWN_ISSUES.md)。
 - 任务按 `DownloadRepository` 中的列表顺序（即创建顺序）调度，无优先级/插队机制。
 
@@ -309,15 +319,19 @@ kick():
 
 | 路径 | 内容 |
 | --- | --- |
-| `filesDir/tasks.json` | 任务列表（JSON，schema `version=1`） |
+| `filesDir/tasks.json` | 任务列表（JSON，schema `version=2`，含 `engine`/`engineTaskId`/`engineStatus`） |
 | `filesDir/tasks.json.tmp` | 写入中的临时文件，原子替换后消失 |
 | `filesDir/tasks.json.bad-<ts>` | 解析失败时保留的坏文件副本 |
-| `SharedPreferences("motrix_lite_settings")` | 用户设置 |
-| `getExternalFilesDir(null)/staging/<uuid>.part` | 下载中的 staging 文件（外部私有目录；不可用时回退 `filesDir/staging`） |
+| `SharedPreferences("motrix_lite_settings")` | 用户设置（含 `download_engine`） |
+| `getExternalFilesDir(null)/staging/<uuid>.part` | 内置引擎下载中的 staging 文件（外部私有目录；不可用时回退 `filesDir/staging`） |
+| `staging/engines/aria2/tasks/<taskId>/` | aria2 每任务下载目录（含 `.aria2` 控制文件） |
+| `staging/engines/aria2/aria2.log` | aria2 进程日志 |
+| `staging/engines/gopeed/tasks/<taskId>/` | Gopeed 每任务下载目录 |
+| `staging/engines/gopeed/storage/` | Gopeed 内存存储的落盘目录（`storage=mem` 配置） |
 
 ### 6.2 原子写入
 
-`TaskStore.save()`（`data/TaskStore.kt:33-50`）先写 `.tmp`，再 `Files.move(..., ATOMIC_MOVE)`；不支持原子移动时退化为 `REPLACE_EXISTING`。因此进程被杀最多丢失约 1 秒的进度（`SAVE_DEBOUNCE_MS = 700ms` + 写入耗时），不会产生半截 JSON。
+`TaskStore.save()`（`data/TaskStore.kt`）先写 `.tmp`，再 `Files.move(..., ATOMIC_MOVE)`；不支持原子移动时退化为 `REPLACE_EXISTING`。因此进程被杀最多丢失约 1 秒的进度（`SAVE_DEBOUNCE_MS = 700ms` + 写入耗时），不会产生半截 JSON。
 
 写入触发策略：
 
@@ -327,7 +341,7 @@ kick():
 
 ### 6.3 恢复规则
 
-`recoverAfterRestart()`（`DownloadRepository.kt:81-100`）：
+`recoverAfterRestart()`（`DownloadRepository.kt`）：
 
 | 上次状态 | `desiredRunning` | 恢复后 |
 | --- | --- | --- |
@@ -335,9 +349,9 @@ kick():
 | 同上 | `false` | `PAUSED` |
 | PAUSED / COMPLETED / FAILED | 任意 | 保持原状态 |
 
-运行期字段（速度、速度历史、发布进度）一律清零。
+运行期字段（速度、速度历史、发布进度）一律清零；**原生引擎的 `engineTaskId`/`engineStatus` 也清零**（进程重启后 aria2 gid / Gopeed task id 必然失效），由 Controller 重新 `addUri`/创建任务。
 
-> 注意：恢复为 `QUEUED` 后是否真正开始，还取决于服务是否在运行、并发槽位、Wi-Fi 策略与设置项 `autoResumeUnfinished`。`MainViewModel.init` 在 `autoResumeUnfinished=true` 且存在需要服务的任务时会拉起服务（`ui/MainViewModel.kt:63-70`）。
+> 注意：恢复为 `QUEUED` 后是否真正开始，还取决于服务是否在运行、并发槽位、Wi-Fi 策略与设置项 `autoResumeUnfinished`。`MainViewModel.init` 在 `autoResumeUnfinished=true` 且存在需要服务的任务时会拉起服务（`ui/MainViewModel.kt`）。
 
 ---
 
@@ -405,7 +419,7 @@ try {
 
 `startForeground` 可能因 Android 12+ 后台启动限制、Android 14+ 缺少 FGS 类型权限、Android 15 时限等原因抛出 `ForegroundServiceStartNotAllowedException`。此时服务不硬扛：暂停任务、通过 `RepoEvent.Message` 提示用户回到前台继续。
 
-UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceController.kt:19-28`），因为"服务是否起来"最终会反映在任务状态上。
+UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceController.kt`），因为"服务是否起来"最终会反映在任务状态上。
 
 ### 8.3 通知
 
@@ -416,15 +430,66 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 - 通知权限未授予时 `updateForeground` / `postCompleted` / `postFailed` 直接返回（`NotificationPermission.isGranted` 基于 `areNotificationsEnabled()`）。
 - 前台通知 ID 固定 `1001`，通过 `setOnlyAlertOnce(true)` + `setSilent(true)` 避免刷屏。
 
-### 8.4 与协调器的关系
+### 8.4 与协调器/原生引擎控制器的关系
 
-服务 `onCreate` 时构造 `DownloadCoordinator`，`onStartCommand` 中 `coordinator.start()`；`onDestroy` 中 `coordinator.stop()`。协调器自己持有 IO 作用域，因此服务的主线程作用域只负责监控循环与事件订阅，不会被下载阻塞。
+服务 `onCreate` 时构造 `DownloadCoordinator`、`Aria2EngineController`、`GopeedEngineController`，`onStartCommand` 中依次 `start()`，`onDestroy` 中依次 `stop()`。协调器与两个控制器各自持有 IO 作用域，因此服务的主线程作用域只负责监控循环与事件订阅，不会被下载阻塞。
+
+- 服务停 → 三个执行器全部停止：协调器取消任务协程；aria2 执行 `shutdown` 并回收子进程；Gopeed 调用 `stop()` 关闭内嵌 REST 并清空引擎任务 ID。
+- 三个执行器都只处理自己引擎的任务；通知聚合、WakeLock、空闲退出由服务统一完成。
+- 两个原生引擎可能同时运行（旧任务 + 新任务使用不同引擎），资源占用增加。
 
 ---
 
-## 九、网络与限速
+## 九、原生下载内核（v1.1.0 新增）
 
-### 9.1 OkHttp 配置（`AppContainer.kt:44-55`）
+### 9.1 可用性探测（`engine/native/EngineAvailability.kt`）
+
+| 引擎 | 探测方式 | 不可用时的行为 |
+| --- | --- | --- |
+| aria2 | `applicationInfo.nativeLibraryDir/libaria2c.so` 存在且长度 > 1 MB | 设置页禁用；Controller 标记相关任务失败并提示"aria2 内核未打包" |
+| Gopeed | 反射查找 `com.gopeed.libgopeed.Libgopeed` 等候选类（`Class.forName`，失败返回 null） | 设置页禁用；Controller 标记任务失败并提示"Gopeed AAR 未打包" |
+
+`GopeedBridge` 完全使用反射，避免源码构建对 AAR 产生编译期依赖；AAR 实际只导出 `start`/`stop`（无事件/InvokeAsync 桥），因此任务控制全部通过 REST 轮询完成。`EngineAvailability.USER_AGENT = "MotrixLite/1.1 (Android; native engine)"` 供 aria2 任务使用。
+
+### 9.2 aria2 控制器（`Aria2EngineController`）
+
+- **关注对象**：`repository.tasks` 中 `engine == ARIA2` 的任务；每 700 ms tick 一次。
+- **进程生命周期**：只有存在需要运行的 aria2 任务时才启动；没有未完成任务或全部暂停时 `shutdownProcess()`；进程异常退出时清空内存 gid 与任务 `engineTaskId`，下一轮重建。
+- **启动**：随机空闲端口（`ServerSocket(0)`）+ 随机 `--rpc-secret`；参数见 [ENGINE_INTEGRATION_PLAN.md](ENGINE_INTEGRATION_PLAN.md) 第 5.2 节；`--stop-with-process=<pid>` 兜底避免孤儿进程。
+- **gid 映射**：内存 `ConcurrentHashMap<taskId, gid>` + 持久化 `engineTaskId`；进程停止时一并清空。
+- **任务创建**：`aria2.addUri`，options 指定每任务目录、文件名、`continue=true`、连接数、UA 等。
+- **轮询**：`tellStatus` 更新进度/总长/速度，并映射状态；`engineStatus` 保存原始状态。
+- **全局限速/并发**：设置变化时 `changeGlobalOption` 下发；仅当值变化才调用。
+- **仅 Wi-Fi**：非 Wi-Fi 时 `pause(gid)` 并置 `WAITING_FOR_WIFI`，恢复后重新排队。
+- **完成发布**：`complete` → `SAVING` → `DestinationPublisher.publish()` → `markCompleted()` → 删除任务目录。
+- **删除**：检测到任务从 Repository 消失后 `remove`/`removeDownloadResult` 并删除任务目录。
+- **停止**：`saveSession`（尽力）→ `shutdown`/`forceShutdown` → `waitFor(3s)` → 强制杀死。
+
+### 9.3 Gopeed 控制器（`GopeedEngineController`）
+
+- **关注对象**：`engine == GOPEED` 的任务；每 700 ms tick。
+- **服务生命周期**：有需要运行的任务时 `GopeedBridge.start(configJson)` 启动内嵌 REST（`127.0.0.1:0`，随机 `apiToken`）；没有需要运行的任务（全部完成或已暂停）时 `GopeedBridge.stop()` 并清空引擎任务 ID，避免 Go 线程/端口泄漏。暂停后恢复会重建任务，续传行为取决于 Gopeed 内核对已有文件的处理（待真机验证）。
+- **REST 客户端**：`GopeedApi` 带 `X-Api-Token`；`GET /info` 等待就绪，`GET /tasks` 轮询全量任务，`POST /tasks` 创建，`PUT /tasks/{id}/pause|continue` 控制，`DELETE /tasks/{id}?force=true` 删除。
+- **状态映射**：`running` → 下载中；`ready/wait` → 连接中；`pause` → 暂停；`error` → 失败；`done` → 发布。
+- **完成发布**：`done` → 解析任务目录文件 → `DestinationPublisher` → `markCompleted` → 删除任务目录与引擎侧任务。
+- **停止**：服务停止/任务结束调用 `stop()`，同时清空 `engineTaskId`。
+- **限制**：REST API 无全局限速；与 App 同进程，Go panic/OOM 可能导致 App 崩溃。
+
+### 9.4 为什么 aria2 必须走 nativeLibraryDir
+
+Android 10（API 29）起，`targetSdk >= 29` 的应用不能从应用私有数据目录 `exec()` 文件。因此 aria2 二进制重命名为 `libaria2c.so` 放入 `jniLibs/arm64-v8a/`，由系统解压到 `nativeLibraryDir` 后执行；`packaging.jniLibs.useLegacyPackaging = true` 确保解压。详见 [native/aria2/README.md](../native/aria2/README.md)。
+
+### 9.5 并发与资源
+
+- 三个引擎各自按设置参数运行，**没有跨引擎统一并发槽位**：内置引擎受 Coordinator 槽位约束；aria2 受 `--max-concurrent-downloads` 约束；Gopeed 受 `maxRunning` 约束。
+- 所以当两个原生引擎同时有任务时，实际活跃任务数可能超过设置页的"同时下载任务数"。
+- 两个原生内核都按需启动、空闲停止；但 AAR 与 Go runtime 的内存占用、aria2 进程的常驻内存仍高于纯内置引擎。
+
+---
+
+## 十、网络与限速
+
+### 9.1 OkHttp 配置（`AppContainer.kt`）
 
 | 参数 | 值 |
 | --- | --- |
@@ -448,7 +513,7 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 ---
 
-## 十、UI 架构
+## 十一、UI 架构
 
 - **单 Activity**：`MainActivity` 只做 `setContent` 与主题注入（`ui/MainActivity.kt`）。
 - **状态**：全部来自 `MainViewModel`（`AndroidViewModel`）暴露的 `StateFlow`；UI 不持有业务状态。
@@ -459,25 +524,28 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 ---
 
-## 十一、关键设计决策
+## 十二、关键设计决策
 
 | 决策 | 选择 | 理由 | 代价 |
 | --- | --- | --- | --- |
-| 语言/UI | Kotlin + Compose | 原生 API（FGS、MediaStore、SAF、通知）零桥接；release 包仅约 1.4 MB | Compose 与 AGP/Kotlin 版本强耦合 |
-| 下载内核 | 自研 OkHttp | 无 GPL 分发义务；可精确控制暂停、限速、错误分类 | 无 BT/磁力、需自行维护协议细节 |
-| 下载落盘 | 应用专属 staging + 随机写 | 支持 seek、可断点续传、不暴露半成品 | 发布阶段 2 倍峰值空间 |
-| 发布方式 | MediaStore（10+）/ SAF / 私有目录（8/9） | 零存储权限，符合分区存储 | 8/9 上文件不对所有文件管理器可见 |
+| 语言/UI | Kotlin + Compose | 原生 API（FGS、MediaStore、SAF、通知）零桥接；内置引擎部分保持轻量 | Compose 与 AGP/Kotlin 版本强耦合 |
+| 下载内核 | 内置 OkHttp + 可选 Gopeed/aria2 | 内置引擎保持轻量可控；双原生内核提供更多协议与生态能力 | 含 GPL 组件后整体必须 GPLv3；APK 显著增大（v1.1.0 最终 debug 64.36 MB / release 36.77 MB）；Gopeed 同进程崩溃风险 |
+| 下载落盘 | 应用专属 staging + 随机写/引擎目录 | 支持 seek、可断点续传、不暴露半成品 | 发布阶段 2 倍峰值空间 |
+| 发布方式 | MediaStore（10+）/ SAF / 私有目录（8/9） | 零存储权限，符合分区存储；三引擎统一 | 8/9 上文件不对所有文件管理器可见 |
 | 持久化 | 单 JSON + 原子替换 | 简单、可读、易调试 | 任务数很多时整表重写有开销 |
 | 保活 | 前台服务 dataSync + WakeLock | 系统允许的长时间下载方式 | 受 Android 15 6h/24h 限制 |
+| 原生引擎调度 | 按需启动、空闲停止、状态经 Repository 驱动 | UI 与引擎解耦，重启可重建 | 两个引擎可能同时运行，资源开销增加 |
 | 依赖注入 | 手写容器 | 构建快、依赖图清晰 | 无编译期校验 |
 
 ---
 
-## 十二、扩展点
+## 十三、扩展点
 
 | 方向 | 切入点 | 说明 |
 | --- | --- | --- |
-| 磁力/BT | 新增 `engine/torrent/`，在 `HttpProbe` 前分流 scheme（`magnet:`、`*.torrent`） | 需要 bencode、metadata 交换、peer wire、tracker/DHT；Android 后台与端口限制是主要障碍 |
+| 磁力/BT | Gopeed/aria2 内核已具备部分协议能力，但当前任务创建流程未接入；可在 `MainViewModel.startDownload` 前按 scheme 分流，并新增 P2P 任务参数与 UI | 需要 tracker/DHT、端口映射、做种管理；Android 后台与端口限制是主要障碍；当前范围外 |
+| 原生引擎限速 | aria2 已支持；Gopeed 需等待其 REST API 提供全局限速，或改为按任务限速 | 见 KI-23 |
+| 原生引擎事件 | 可用 Gopeed `SubscribeTaskEvents` 替代轮询降低延迟 | 需处理 JNI 回调线程与生命周期 |
 | 鉴权下载 | `HttpProbe`/`TaskDownloader` 增加请求头注入（Cookie/Referer/Authorization） | 需 UI 输入与安全存储，注意不要把凭据写进 `tasks.json` 明文 |
 | 校验和 | `finalizeTask()` 后增加 SHA-256/MD5 校验 | 可作为可选字段 `expectedHash` 持久化 |
 | 每任务独立通知 | `NotificationHelper` 按任务分配通知 ID | 需处理大量任务的系统限流（Android 单应用通知上限） |
@@ -488,7 +556,7 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 ---
 
-## 十三、并发安全要点
+## 十四、并发安全要点
 
 | 共享状态 | 保护方式 |
 | --- | --- |
@@ -504,20 +572,25 @@ UI 侧 `ServiceController.start()` 同样吞掉异常（`service/ServiceControll
 
 ---
 
-## 十四、源码索引
+## 十五、源码索引
 
 | 关注点 | 文件 |
 | --- | --- |
 | 进程装配 | `app/src/main/java/com/motrixlite/downloader/App.kt`、`AppContainer.kt` |
-| 状态机/模型 | `.../data/model/Models.kt` |
-| 任务仓库 | `.../data/DownloadRepository.kt` |
-| 持久化 | `.../data/TaskStore.kt`、`.../data/TaskJsonCodec.kt` |
+| 状态机/模型 | `.../data/model/Models.kt`（含 `DownloadEngine`） |
+| 任务仓库/引擎恢复 | `.../data/DownloadRepository.kt`（`recoverAfterRestart` 清空原生 ID） |
+| 持久化 | `.../data/TaskStore.kt`、`.../data/TaskJsonCodec.kt`（schema v2） |
 | 探测 | `.../engine/HttpProbe.kt` |
 | 分段规划 | `.../engine/SegmentPlanner.kt` |
 | 下载执行 | `.../engine/TaskDownloader.kt` |
-| 调度 | `.../engine/DownloadCoordinator.kt` |
+| 内置引擎调度 | `.../engine/DownloadCoordinator.kt`（仅 BUILTIN） |
 | 限速 | `.../engine/RateLimiter.kt` |
+| aria2 控制器 | `.../engine/native/Aria2EngineController.kt` |
+| aria2 RPC 客户端 | `.../engine/native/Aria2RpcClient.kt` |
+| Gopeed 控制器 | `.../engine/native/GopeedEngineController.kt` |
+| Gopeed REST 客户端 | `.../engine/native/GopeedApi.kt` |
+| 原生引擎可用性/反射桥 | `.../engine/native/EngineAvailability.kt` |
 | 发布 | `.../storage/DestinationPublisher.kt` |
-| 服务 | `.../service/DownloadService.kt`、`.../service/NotificationHelper.kt` |
-| UI | `.../ui/MainActivity.kt`、`.../ui/MainViewModel.kt`、`.../ui/MainScreen.kt` |
+| 服务 | `.../service/DownloadService.kt`（持有 3 个执行器）、`.../service/NotificationHelper.kt` |
+| UI | `.../ui/MainActivity.kt`、`.../ui/MainViewModel.kt`、`.../ui/MainScreen.kt`、`.../ui/screens/SettingsScreen.kt` |
 | 平台适配 | `.../util/HyperOSGuide.kt`、`.../network/NetworkMonitor.kt` |
