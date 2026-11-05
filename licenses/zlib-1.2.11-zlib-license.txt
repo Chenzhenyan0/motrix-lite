@@ -1,0 +1,7 @@
+zlib 1.2.11 -- license notice
+============================
+
+Source: https://github.com/madler/zlib at commit cacf7f1d4e3d44d871b605da3b647f07d718623f (submodule pin of
+devgianlu/aria2-android v1.37.0); extracted verbatim from the zlib.h license header.
+
+/
